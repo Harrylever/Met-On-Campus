@@ -5,6 +5,7 @@ Bun workspaces monorepo.
 | Path | What |
 |---|---|
 | `apps/web` | TanStack Start (React, Vite, Tailwind v4). Talks to the API through Eden Treaty. |
+| `apps/marketing` | Next.js marketing site for metoncampus.xyz (static; see Marketing site). |
 | `apps/platform` | Next.js staff monitoring app (see below). |
 | `apps/api` | ElysiaJS on Bun: REST + native WebSocket (`/ws`). Exports `type App` for Eden. |
 | `packages/db` | Drizzle ORM schema + migrations (PostgreSQL). |
@@ -21,6 +22,15 @@ bun run dev                   # web :3000, api :3001
 
 Dev sign-in: request a code for any `*.edu.ng` address. With `RESEND_API_KEY` empty the code prints in the API console; set it (plus `EMAIL_FROM` on your verified Resend domain) to send real email. Production refuses to boot without the key.
 `bun run db:seed` loads sample students, rooms and chats (sign in as `amina@st.futminna.edu.ng`).
+
+## Marketing site
+`apps/marketing` is a static Next.js site for the root domain: home (with an interactive mode preview), safety, universities, terms and privacy. It sets no cookies, loads no analytics, and every call to action points at the app (`NEXT_PUBLIC_APP_URL`).
+
+- Local: `bun run dev` (marketing on :3200).
+- Env (not secret, baked into the build): `NEXT_PUBLIC_SITE_URL` (default `https://metoncampus.xyz`), `NEXT_PUBLIC_APP_URL` (default `https://app.metoncampus.xyz`), `NEXT_PUBLIC_CONTACT_EMAIL`. With no contact email, the universities and legal pages say contact details are coming; set it before launch.
+- Vercel (new project): Root Directory `apps/marketing`, "Include source files outside of the Root Directory" on. Add the domain `metoncampus.xyz` and redirect `www.metoncampus.xyz` to it.
+- The hero photos are from Unsplash (`src/lib/photos.ts`), hotlinked from their CDN with the photographer credit shown on the card, as Unsplash's guidelines require. To swap one, search the Unsplash API, call the photo's `download_location` once when you pick it, and update that file. The CSP allows only `images.unsplash.com` for remote images. The Unsplash key is only needed while choosing photos, so keep it out of the repo (`apps/marketing/.env.local` is gitignored).
+- The terms and privacy pages are a plain-language starting point written from how the product works today. Have a Nigerian lawyer review them, and update them (and `updated` in `src/lib/site.ts`) whenever data practices change.
 
 ## Platform app (staff monitoring)
 `apps/platform` is a separate Next.js app for `platform.metoncampus.xyz`: overview metrics, reports queue with moderation (dismiss / record warning / suspend), student lookup, live activity, service health + Railway deployments, and an audit log.

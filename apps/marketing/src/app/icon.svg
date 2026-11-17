@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Met On Campus</title>
+  <defs>
+    <clipPath id="ab"><rect x="337" y="300" width="180" height="170"/></clipPath>
+    <clipPath id="bc"><rect x="507" y="300" width="180" height="170"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="#FFF1F2"/>
+  <circle cx="342" cy="512" r="150" fill="none" stroke="#2563EB" stroke-width="88"/>
+  <circle cx="512" cy="512" r="150" fill="none" stroke="#059669" stroke-width="88"/>
+  <circle cx="682" cy="512" r="150" fill="none" stroke="#E11D48" stroke-width="88"/>
+  <circle cx="342" cy="512" r="150" fill="none" stroke="#2563EB" stroke-width="88" clip-path="url(#ab)"/>
+  <circle cx="512" cy="512" r="150" fill="none" stroke="#059669" stroke-width="88" clip-path="url(#bc)"/>
+</svg>

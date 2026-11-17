@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-grotesk), system-ui, sans-serif;
+  --color-canvas: var(--canvas); --color-surface: var(--surface); --color-subtle: var(--subtle); --color-line: var(--line);
+  --color-ink: var(--ink); --color-ink-2: var(--ink-2); --color-ink-3: var(--ink-3);
+  --color-study: var(--study); --color-friends: var(--friends); --color-romance: var(--romance);
+  --color-study-ink: var(--study-ink); --color-friends-ink: var(--friends-ink); --color-romance-ink: var(--romance-ink);
+}
+
+/* Roles, not hex. Same values as the app's design system; the dark set is its own selection, not an inversion. */
+:root {
+  color-scheme: light;
+  --canvas: #FAF9F6; --surface: #FFFFFF; --subtle: #F3F1EC; --line: #E6E3DC;
+  --ink: #141413; --ink-2: #57534E; --ink-3: #6B665F; --on-accent: #FFFFFF;
+  --study: #2563EB; --study-bg: #EFF6FF; --study-line: #BFDBFE; --study-ink: #1D4ED8;
+  --friends: #059669; --friends-bg: #ECFDF5; --friends-line: #A7F3D0; --friends-ink: #047857;
+  --romance: #E11D48; --romance-bg: #FFF1F2; --romance-line: #FECDD3; --romance-ink: #BE123C;
+}
+/* Dark applies when the viewer picked it (data-theme="dark"), or when they have not picked light and the system prefers dark.
+   The same values are declared twice because CSS cannot share one block across a media query and an attribute selector. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --canvas: #111110; --surface: #1A1A18; --subtle: #262623; --line: #2E2E2A;
+    --ink: #F5F5F4; --ink-2: #C3C2B7; --ink-3: #A8A29E; --on-accent: #111110;
+    --study: #3B82F6; --study-bg: #172554; --study-line: #1E40AF; --study-ink: #93C5FD;
+    --friends: #10B981; --friends-bg: #022C22; --friends-line: #065F46; --friends-ink: #6EE7B7;
+    --romance: #F43F5E; --romance-bg: #4C0519; --romance-line: #9F1239; --romance-ink: #FDA4AF;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #111110; --surface: #1A1A18; --subtle: #262623; --line: #2E2E2A;
+  --ink: #F5F5F4; --ink-2: #C3C2B7; --ink-3: #A8A29E; --on-accent: #111110;
+  --study: #3B82F6; --study-bg: #172554; --study-line: #1E40AF; --study-ink: #93C5FD;
+  --friends: #10B981; --friends-bg: #022C22; --friends-line: #065F46; --friends-ink: #6EE7B7;
+  --romance: #F43F5E; --romance-bg: #4C0519; --romance-line: #9F1239; --romance-ink: #FDA4AF;
+}
+
+/* Theme toggle icons: the page script always sets data-theme before first paint, so CSS alone picks the icon (no flicker). */
+html[data-theme="dark"] .icon-moon { display: none; }
+html:not([data-theme="dark"]) .icon-sun { display: none; }
+
+/* One attribute swaps a whole region's accent. */
+[data-intent="study"]   { --i: var(--study);   --i-bg: var(--study-bg);   --i-line: var(--study-line);   --i-ink: var(--study-ink); }
+[data-intent="friends"] { --i: var(--friends); --i-bg: var(--friends-bg); --i-line: var(--friends-line); --i-ink: var(--friends-ink); }
+[data-intent="romance"] { --i: var(--romance); --i-bg: var(--romance-bg); --i-line: var(--romance-line); --i-ink: var(--romance-ink); }
+
+html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+html, body { background: var(--canvas); color: var(--ink); font-family: var(--font-sans); }
+body { font-size: 1.0625rem; line-height: 1.65; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.025em; line-height: 1.08; text-wrap: balance; }
+p, li { text-wrap: pretty; }
+:focus-visible { outline: 2px solid var(--study-ink); outline-offset: 3px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+
+@layer components {
+  .btn { @apply inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-base font-semibold text-canvas transition hover:opacity-90 active:scale-[.98]; }
+  .btn-quiet { @apply inline-flex h-12 items-center justify-center rounded-full border border-line px-6 text-base font-semibold text-ink transition hover:border-ink-3; }
+  .container-x { @apply mx-auto w-full max-w-6xl px-5 sm:px-8; }
+  .prose-site { @apply max-w-[62ch] space-y-4 text-ink-2; }
+  .prose-site h2 { @apply mt-10 text-2xl text-ink first:mt-0; }
+  .prose-site h3 { @apply mt-6 text-lg text-ink; }
+  .prose-site a { @apply text-ink underline underline-offset-4 hover:no-underline; }
+  .prose-site ul { @apply list-disc space-y-2 pl-5; }
+  .prose-site strong { @apply font-semibold text-ink; }
+}
+
+/* The hero demo's only motion: answers a tap by bringing in the new profile. */
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.28s ease-out both; }
+@keyframes pulse-dot { 50% { opacity: 0.35; } }
+.live-dot { animation: pulse-dot 2s ease-in-out infinite; }
