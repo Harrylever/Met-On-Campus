@@ -1,0 +1,42 @@
+import { and, asc, eq, isNull, or } from "drizzle-orm"
+import { campusSpots, departments } from "@moc/db"
+import { db } from "./context"
+
+// Ready-made choices for "usually free". The profile stores the chosen ones (plus an optional note) as plain text.
+export const FREE_TIME_PRESETS = [
+  "Weekday mornings",
+  "Weekday afternoons",
+  "Weekday evenings",
+  "Lunch hours",
+  "After lectures",
+  "Weekend mornings",
+  "Weekend afternoons",
+  "Weekend evenings",
+] as const
+
+type ListTable = typeof departments | typeof campusSpots
+
+/**
+ * Names a student on `university` can pick: active entries that are global (university null) or for their campus.
+ * A campus-specific entry wins over a global one with the same name. Ordered by staff's sort order, then name.
+ */
+async function activeNames(table: ListTable, university: string): Promise<string[]> {
+  const rows = await db
+    .select({ name: table.name })
+    .from(table)
+    .where(and(eq(table.active, true), or(isNull(table.university), eq(table.university, university))))
+    .orderBy(asc(table.sortOrder), asc(table.name))
+  const seen = new Set<string>()
+  return rows
+    .map((r) => r.name)
+    .filter((n) => (seen.has(n.toLowerCase()) ? false : (seen.add(n.toLowerCase()), true)))
+}
+
+export const departmentsFor = (university: string) => activeNames(departments, university)
+export const spotsFor = (university: string) => activeNames(campusSpots, university)
+
+/** Tidy a name from a form: trim and collapse runs of whitespace. */
+export const tidy = (s: string) => s.trim().replace(/\s+/g, " ")
+
+/** The list's own spelling of `name` (case-insensitive match), or undefined if it is not in the list. */
+export const canonical = (list: string[], name: string) => list.find((x) => x.toLowerCase() === tidy(name).toLowerCase())

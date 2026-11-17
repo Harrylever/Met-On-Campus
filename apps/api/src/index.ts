@@ -6,11 +6,13 @@ import { meRoutes } from "./routes/me"
 import { discoverRoutes } from "./routes/discover"
 import { connectionRoutes } from "./routes/connections"
 import { safetyRoutes } from "./routes/safety"
+import { metaRoutes } from "./routes/meta"
 import { roomRoutes } from "./routes/rooms"
 import { presenceRoutes } from "./routes/presence"
 import { wsRoutes } from "./ws"
 import { adminAuthRoutes, adminSessionRoutes } from "./admin/auth-routes"
 import { adminRoutes } from "./admin/routes"
+import { adminList } from "./admin/lists"
 import { adminServiceGate } from "./admin/session"
 import { recordRequest } from "./metrics"
 
@@ -26,11 +28,14 @@ export const app = new Elysia()
   .use(connectionRoutes)
   .use(roomRoutes)
   .use(safetyRoutes)
+  .use(metaRoutes)
   .use(presenceRoutes)
   .use(wsRoutes)
   .use(adminAuthRoutes)
   .use(adminSessionRoutes)
   .use(adminRoutes)
+  .use(adminList("departments"))
+  .use(adminList("spots"))
 
 // The web app imports this type for Eden Treaty. Nothing else from the api leaks to the client.
 export type App = typeof app

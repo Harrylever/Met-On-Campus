@@ -138,6 +138,27 @@ export const reports = pgTable('reports', {
   createdAt: createdAt(),
 }, (t) => [index('reports_status_idx').on(t.status, t.createdAt), index('reports_reported_idx').on(t.reportedId)])
 
+// ---- Admin-managed lists --------------------------------------------------------------------------
+// Staff manage these from the platform. `university` null means "offered on every campus". Students store the
+// chosen name as plain text (users.department, intent_profiles.usual_spot), so renaming here updates those rows too.
+export const departments = pgTable('departments', {
+  id: id(),
+  name: text('name').notNull(),
+  university: text('university'),
+  active: boolean('active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('departments_name_campus').on(sql`lower(${t.name})`, sql`coalesce(${t.university}, '')`)])
+
+export const campusSpots = pgTable('campus_spots', {
+  id: id(),
+  name: text('name').notNull(),
+  university: text('university'),
+  active: boolean('active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('campus_spots_name_campus').on(sql`lower(${t.name})`, sql`coalesce(${t.university}, '')`)])
+
 // ---- Platform (staff) ----------------------------------------------------------------------------
 // Staff are separate from students: own table, own sessions, own audit trail. Created only by the
 // `admin:invite` CLI; there is no public sign-up. Secrets are never stored in plain text:

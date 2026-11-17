@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { Brand, VerifiedPill } from '~/components/ui'
 
@@ -18,14 +18,17 @@ const BLURB: Record<Intent, string> = {
   friends: 'Clubs, sport, food and people to hang out with.',
   romance: 'Private by default. Shown only to students who also turned it on.',
 }
-const DEPTS = ['Cyber Security', 'Computer Science', 'Information Technology', 'Electrical Engineering']
 
 function Onboarding() {
   const { me } = Route.useRouteContext()
   const nav = useNavigate()
   const [on, setOn] = useState<Record<Intent, boolean>>({ study: true, friends: false, romance: false })
   const [hideDept, setHideDept] = useState(true)
-  const [department, setDepartment] = useState(DEPTS[0]!)
+  // The department list is managed by staff and differs per campus, so it comes from the server.
+  const meta = useQuery({ queryKey: ['meta'], queryFn: () => unwrap(api.meta.get()) })
+  const departments = meta.data?.departments ?? []
+  const [chosenDept, setDepartment] = useState('')
+  const department = chosenDept || departments[0] || ''
   const [level, setLevel] = useState(400)
   const any = Object.values(on).some(Boolean)
 
@@ -68,14 +71,14 @@ function Onboarding() {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <label className="space-y-2 text-sm font-semibold">Department
-          <select className="input mt-2 h-11 font-normal" value={department} onChange={(e) => setDepartment(e.target.value)}>{DEPTS.map((d) => <option key={d}>{d}</option>)}</select>
+          <select className="input mt-2 h-11 font-normal" value={department} onChange={(e) => setDepartment(e.target.value)}>{departments.length === 0 && <option value="">{meta.isError ? 'Could not load departments' : 'Loading…'}</option>}{departments.map((d) => <option key={d}>{d}</option>)}</select>
         </label>
         <label className="space-y-2 text-sm font-semibold">Level
           <select className="input mt-2 h-11 font-normal" value={level} onChange={(e) => setLevel(+e.target.value)}>{[100, 200, 300, 400, 500].map((l) => <option key={l} value={l}>{l}L</option>)}</select>
         </label>
       </div>
       <div className="mt-auto space-y-2">
-        <button className="btn w-full" disabled={!any || save.isPending} onClick={() => save.mutate()}>Enter Campus</button>
+        <button className="btn w-full" disabled={!any || !department || save.isPending} onClick={() => save.mutate()}>Enter Campus</button>
         {!any && <p className="text-center text-[13px] text-ink-2">Turn on at least one mode to continue.</p>}
       </div>
     </main>

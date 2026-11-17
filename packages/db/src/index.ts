@@ -3,6 +3,7 @@ import postgres from 'postgres'
 import * as schema from './schema'
 
 export * from './schema'
+export * from './defaults'
 export { schema }
 
 export function createDb(url = process.env.DATABASE_URL ?? 'postgres://localhost:5432/metoncampus_dev') {

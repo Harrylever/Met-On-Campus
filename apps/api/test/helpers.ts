@@ -1,6 +1,6 @@
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { sql } from 'drizzle-orm'
-import { adminSessions, adminUsers, intentProfiles, sessions, users } from '@moc/db'
+import { adminSessions, adminUsers, campusSpots, DEFAULT_DEPARTMENTS, DEFAULT_SPOTS, departments, intentProfiles, sessions, users } from '@moc/db'
 import { eq } from 'drizzle-orm'
 import { encrypt, hashBackupCode, newBackupCodes } from '../src/admin/crypto'
 import { hotp, base32Decode, newTotpSecret } from '../src/admin/totp'
@@ -13,6 +13,10 @@ export type Intent = 'study' | 'friends' | 'romance'
 export async function resetAll() {
   await migrate(db, { migrationsFolder: new URL('../../../packages/db/drizzle', import.meta.url).pathname })
   await db.execute(sql`truncate table users, email_codes, admin_users, admin_audit restart identity cascade`)
+  // The lists are staff-editable, so every test starts from the same defaults the migration seeds.
+  await db.execute(sql`truncate table departments, campus_spots`)
+  await db.insert(departments).values(DEFAULT_DEPARTMENTS.map((name, i) => ({ name, sortOrder: (i + 1) * 10 })))
+  await db.insert(campusSpots).values(DEFAULT_SPOTS.map((name, i) => ({ name, sortOrder: (i + 1) * 10 })))
   await redis.flushdb()
 }
 

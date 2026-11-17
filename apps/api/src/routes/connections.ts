@@ -2,7 +2,8 @@ import { Elysia, t } from 'elysia'
 import { and, desc, eq, or, sql } from 'drizzle-orm'
 import { connectionRequests, conversations, messages, users } from '@moc/db'
 import { authed, publicSelf } from '../auth'
-import { bus, CAMPUS_SPOTS, db, topics } from '../context'
+import { bus, db, topics } from '../context'
+import { canonical, spotsFor } from '../lists'
 import { canInteract, orderedPair } from '../visibility'
 import { blockedWith, isBlockedBetween } from '../blocks'
 
@@ -60,8 +61,11 @@ export const connectionRoutes = new Elysia().use(authed)
     const conv = await myConversation(user.id, params.id)
     if (!conv) return status(404, { error: 'not_found' })
     if (body.kind === 'meetup') {
-      if (!body.where || !body.when || !(CAMPUS_SPOTS as readonly string[]).includes(body.where)) return status(422, { error: 'public_campus_spot_required' })
+      // Only spots staff have listed for this campus (public places). The list's own spelling is what gets stored.
+      const spot = body.where ? canonical(await spotsFor(user.university), body.where) : undefined
+      if (!spot || !body.when) return status(422, { error: 'public_campus_spot_required' })
       if (new Date(body.when) < new Date()) return status(422, { error: 'time_in_past' })
+      body.where = spot
     } else if (!body.body?.trim()) return status(422, { error: 'empty' })
     const [msg] = await db.insert(messages).values(body.kind === 'meetup'
       ? { conversationId: conv.id, senderId: user.id, kind: 'meetup', meetupWhere: body.where, meetupWhen: new Date(body.when!), meetupStatus: 'pending' }
@@ -81,4 +85,4 @@ export const connectionRoutes = new Elysia().use(authed)
     bus.publish(topics.user(row.m.senderId), { type: 'meetup.updated', conversationId: row.c.id, message: msg })
     return { message: msg }
   }, { body: t.Object({ status: t.Union([t.Literal('confirmed'), t.Literal('declined')]) }) })
-  .get('/spots', () => ({ spots: CAMPUS_SPOTS }))
+  .get('/spots', async ({ user }) => ({ spots: await spotsFor(user.university) }))
