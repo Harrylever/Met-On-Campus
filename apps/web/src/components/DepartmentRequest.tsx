@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '~/lib/api'
 
 const RECENT_DAYS = 14
+const DISMISSED_KEY = 'moc.dismissedDeptNotice'
+// Which decision notice the student closed, remembered on this device only (storage can be blocked, so never rely on it).
+const readDismissed = () => { try { return localStorage.getItem(DISMISSED_KEY) } catch { return null } }
 const MESSAGES: Record<string, string> = {
   invalid_name: 'Use 2 to 60 letters, numbers or common punctuation.',
   already_requested: 'You already have a request open. Withdraw it first to send another.',
@@ -18,6 +21,8 @@ export function DepartmentRequest({ open: startOpen = false }: { open?: boolean 
   const [open, setOpen] = useState(startOpen)
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [dismissed, setDismissed] = useState<string | null>(readDismissed)
+  const dismiss = (id: string) => { setDismissed(id); try { localStorage.setItem(DISMISSED_KEY, id) } catch { /* shown again next visit; harmless */ } }
   const list = useQuery({ queryKey: ['dept-requests'], queryFn: () => unwrap(api.me['department-requests'].get()) })
   const refresh = () => { qc.invalidateQueries({ queryKey: ['dept-requests'] }); qc.invalidateQueries({ queryKey: ['meta'] }) }
 
@@ -34,7 +39,7 @@ export function DepartmentRequest({ open: startOpen = false }: { open?: boolean 
   const latest = list.data?.requests[0]
   const pending = latest?.status === 'pending' ? latest : null
   const recentDecision = latest && latest.status !== 'pending' && latest.status !== 'withdrawn' && latest.reviewedAt
-    && Date.now() - +new Date(latest.reviewedAt) < RECENT_DAYS * 86_400_000 ? latest : null
+    && Date.now() - +new Date(latest.reviewedAt) < RECENT_DAYS * 86_400_000 && latest.id !== dismissed ? latest : null
 
   return (
     <div className="space-y-2 text-sm" aria-live="polite">
@@ -44,9 +49,11 @@ export function DepartmentRequest({ open: startOpen = false }: { open?: boolean 
           <button type="button" className="font-semibold underline underline-offset-2" disabled={withdraw.isPending} onClick={() => withdraw.mutate(pending.id)}>Withdraw</button>
         </p>
       )}
-      {recentDecision?.status === 'approved' && <p className="rounded-[10px] bg-friends-bg p-3 text-friends-ink">Good news: <b>{recentDecision.resolvedName}</b> was added{recentDecision.name !== recentDecision.resolvedName ? ` (for your request “${recentDecision.name}”)` : ''}.</p>}
+      {recentDecision?.status === 'approved' && <p className="rounded-[10px] bg-friends-bg p-3 text-friends-ink">Good news: <b>{recentDecision.resolvedName}</b> was added{recentDecision.name !== recentDecision.resolvedName ? ` (for your request “${recentDecision.name}”)` : ''}.{' '}
+        <button type="button" className="font-semibold underline underline-offset-2" onClick={() => dismiss(recentDecision.id)}>Dismiss</button></p>}
       {recentDecision?.status === 'declined' && (
-        <p className="rounded-[10px] bg-romance-bg p-3 text-romance-ink">We could not add <b>&ldquo;{recentDecision.name}&rdquo;</b>.{recentDecision.note ? ` ${recentDecision.note}` : ''} Pick one from the list, or request another.</p>
+        <p className="rounded-[10px] bg-romance-bg p-3 text-romance-ink">We could not add <b>&ldquo;{recentDecision.name}&rdquo;</b>.{recentDecision.note ? ` ${recentDecision.note}` : ''} Pick one from the list, or request another.{' '}
+          <button type="button" className="font-semibold underline underline-offset-2" onClick={() => dismiss(recentDecision.id)}>Dismiss</button></p>
       )}
 
       {!pending && !open && (
