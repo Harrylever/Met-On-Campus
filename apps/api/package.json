@@ -1,0 +1,24 @@
+{
+  "name": "@moc/api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moc/db": "workspace:*",
+    "@elysiajs/cors": "^1.4.3",
+    "drizzle-orm": "^0.45.4",
+    "elysia": "^1.4.32",
+    "ioredis": "^6.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/bun": "latest"
+  }
+}

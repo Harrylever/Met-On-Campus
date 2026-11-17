@@ -1,0 +1,91 @@
+import { useState } from 'react'
+import { createFileRoute } from '@tanstack/react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
+import { IntentTabs } from '~/components/ui'
+
+export const Route = createFileRoute('/_app/discover')({ component: Discover })
+
+const COPY: Record<Intent, { title: string; desc: string; cta: string; sent: string; label: string }> = {
+  study: { title: 'Study partners on campus', desc: 'Students revising the same courses as you this week.', cta: 'Invite to Study', sent: 'Invite Sent', label: 'Studying this week' },
+  friends: { title: 'Friends on campus', desc: 'People from clubs, teams and hangouts around campus.', cta: 'Say Hi', sent: 'Hi Sent', label: 'Up for' },
+  romance: { title: 'Someone worth meeting', desc: 'Shown only to students who also turned on Romance Mode. Take your time.', cta: 'Send Spark', sent: 'Spark Sent', label: 'Looking for' },
+}
+
+function Discover() {
+  const { me } = Route.useRouteContext()
+  const enabled = INTENTS.filter((i) => me.profiles.some((p) => p.intent === i.id && p.enabled))
+  const [intent, setIntent] = useState<Intent>(enabled[0]?.id ?? 'study')
+  const [dept, setDept] = useState<string>('')
+  const [level, setLevel] = useState<number | ''>('')
+  const [open, setOpen] = useState<string | null>(null)
+  const qc = useQueryClient()
+  const c = COPY[intent]
+
+  const feed = useQuery({
+    queryKey: ['discover', intent, dept, level],
+    queryFn: () => unwrap(api.discover.get({ query: { intent, ...(dept && { department: dept }), ...(level && { level }) } })),
+  })
+  const connect = useMutation({
+    mutationFn: (toUserId: string) => unwrap(api.connections.post({ toUserId, intent })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['discover'] }),
+  })
+  const cards = feed.data?.cards ?? []
+  const depts = [...new Set(cards.map((x) => x.department))]
+
+  return (
+    <div data-intent={intent} className="flex flex-col gap-5 lg:grid lg:grid-cols-[320px_1fr] lg:items-start lg:gap-8">
+      <aside className="flex flex-col gap-5 lg:sticky lg:top-5">
+        <IntentTabs value={intent} onChange={setIntent} options={enabled} />
+        <section className="space-y-2 rounded-[20px] border border-(--i-line) bg-(--i-bg) p-5">
+          <span className="label text-(--i-ink)">{intent} mode</span>
+          <h1 className="text-[28px] font-bold leading-[34px]">{c.title}</h1>
+          <p>{c.desc}</p>
+          <p className="label flex items-center gap-1.5 pt-2 text-ink"><i className="dot-live" />{feed.data?.onCampusNow ?? 0} on campus now</p>
+        </section>
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="Department">
+          <button className="chip" aria-pressed={!dept} onClick={() => setDept('')}>All departments</button>
+          {depts.map((d) => <button key={d} className="chip" aria-pressed={dept === d} onClick={() => setDept(d)}>{d}</button>)}
+        </div>
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="Level">
+          <button className="chip" aria-pressed={!level} onClick={() => setLevel('')}>All levels</button>
+          {[100, 200, 300, 400, 500].map((l) => <button key={l} className="chip font-mono text-xs" aria-pressed={level === l} onClick={() => setLevel(l)}>{l}L</button>)}
+        </div>
+      </aside>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between"><span className="label text-ink">{cards.length} {cards.length === 1 ? 'student' : 'students'}</span><span className="label">On campus first</span></div>
+        {feed.isError && <p role="alert" className="card text-danger">Could not load students. Try again in a moment.</p>}
+        {!feed.isLoading && cards.length === 0 && <div className="card space-y-2"><h2 className="text-[17px] font-semibold">No students match these filters</h2><p className="text-ink-2">Try another department or level, or clear both.</p><button className="btn btn-ghost" onClick={() => { setDept(''); setLevel('') }}>Clear Filters</button></div>}
+        <div className="grid gap-4 xl:grid-cols-2">
+        {cards.map((s) => {
+          const isOpen = open === s.userId
+          return (
+            <article key={s.userId} className="card flex flex-col gap-3 p-0 overflow-hidden">
+              <div className="relative flex h-40 flex-col items-center justify-center bg-(--i-bg) font-display text-[96px] font-bold leading-none text-(--i-ink)" aria-hidden>
+                {s.name[0]}
+                {s.onCampusNow && <span className="pill absolute right-3 top-3"><i className="dot-live" />On Campus Now</span>}
+              </div>
+              <div className="flex flex-col gap-3 p-4 pt-1">
+                <div>
+                  <h2 className="text-[17px] font-semibold">{s.name} • {s.level}L {s.department}</h2>
+                  <span className="text-[13px] text-ink-2">{s.usualSpot ? `Usually at ${s.usualSpot}` : 'On campus'}</span>
+                </div>
+                {s.prompt && <div className="rounded-[10px] border border-(--i-line) bg-(--i-bg) p-3"><span className="label text-(--i-ink)">{c.label}</span><p className="mt-1">{s.prompt}</p></div>}
+                <div className="flex flex-wrap gap-2">{s.tags.map((t) => <span key={t} className="rounded-md border border-(--i-line) bg-(--i-bg) px-2 py-0.5 text-xs text-(--i-ink)">{t}</span>)}</div>
+                {s.inCommon.length > 0 && <span className="text-[13px] font-medium text-(--i-ink)">{s.inCommon.length} in common: {s.inCommon.join(', ')}</span>}
+                {isOpen && <div className="space-y-2 border-t border-line pt-3"><div><span className="label">About</span><p>{s.bio || '—'}</p></div><div><span className="label">Usually free</span><p>{s.usuallyFree || '—'}</p></div></div>}
+                <div className="flex gap-2">
+                  {s.request ? <button disabled className="btn flex-1">{s.request.direction === 'sent' ? c.sent : 'Wants to connect'}</button>
+                    : <button className="btn btn-i flex-1" disabled={connect.isPending} onClick={() => connect.mutate(s.userId)}>{c.cta}</button>}
+                  <button className="btn btn-ghost" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : s.userId)}>{isOpen ? 'Less' : 'More'}</button>
+                </div>
+              </div>
+            </article>
+          )
+        })}
+        </div>
+      </div>
+    </div>
+  )
+}
