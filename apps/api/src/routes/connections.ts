@@ -4,12 +4,14 @@ import { connectionRequests, conversations, messages, users } from '@moc/db'
 import { authed, publicSelf } from '../auth'
 import { bus, CAMPUS_SPOTS, db, topics } from '../context'
 import { canInteract, orderedPair } from '../visibility'
+import { blockedWith, isBlockedBetween } from '../blocks'
 
 const Intent = t.Union([t.Literal('study'), t.Literal('friends'), t.Literal('romance')])
 
 async function myConversation(userId: string, id: string) {
   const [c] = await db.select().from(conversations)
     .where(and(eq(conversations.id, id), or(eq(conversations.userAId, userId), eq(conversations.userBId, userId)))).limit(1)
+  if (!c || (await isBlockedBetween(c.userAId, c.userBId))) return undefined
   return c
 }
 
@@ -39,8 +41,9 @@ export const connectionRoutes = new Elysia().use(authed)
 
   // Inbox, segmented: `intent` is required so Study never leaks into Friends or Romance.
   .get('/conversations', async ({ user, query }) => {
-    const rows = await db.select().from(conversations)
-      .where(and(eq(conversations.intent, query.intent), or(eq(conversations.userAId, user.id), eq(conversations.userBId, user.id))))
+    const blocked = await blockedWith(user.id)
+    const rows = (await db.select().from(conversations)
+      .where(and(eq(conversations.intent, query.intent), or(eq(conversations.userAId, user.id), eq(conversations.userBId, user.id))))).filter((c) => !blocked.has(c.userAId === user.id ? c.userBId : c.userAId))
     const out = await Promise.all(rows.map(async (c) => {
       const otherId = c.userAId === user.id ? c.userBId : c.userAId
       const [other] = await db.select().from(users).where(eq(users.id, otherId)).limit(1)
@@ -72,6 +75,7 @@ export const connectionRoutes = new Elysia().use(authed)
     const [row] = await db.select({ m: messages, c: conversations }).from(messages)
       .innerJoin(conversations, eq(conversations.id, messages.conversationId)).where(eq(messages.id, params.id)).limit(1)
     if (!row || row.m.kind !== 'meetup' || row.m.senderId === user.id || ![row.c.userAId, row.c.userBId].includes(user.id)) return status(404, { error: 'not_found' })
+    if (await isBlockedBetween(row.c.userAId, row.c.userBId)) return status(404, { error: 'not_found' })
     if (row.m.meetupStatus !== 'pending') return status(409, { error: 'already_resolved' })
     const [msg] = await db.update(messages).set({ meetupStatus: body.status }).where(eq(messages.id, params.id)).returning()
     bus.publish(topics.user(row.m.senderId), { type: 'meetup.updated', conversationId: row.c.id, message: msg })

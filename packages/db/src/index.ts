@@ -6,7 +6,7 @@ export * from './schema'
 export { schema }
 
 export function createDb(url = process.env.DATABASE_URL ?? 'postgres://localhost:5432/metoncampus_dev') {
-  const client = postgres(url, { max: 10 })
+  const client = postgres(url, { max: 10, onnotice: () => {} })
   return Object.assign(drizzle(client, { schema }), { $client: client })
 }
 export type Db = ReturnType<typeof createDb>

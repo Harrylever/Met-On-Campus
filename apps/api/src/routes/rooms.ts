@@ -3,15 +3,17 @@ import { and, eq, gt, inArray, sql } from 'drizzle-orm'
 import { roomMembers, rooms, users } from '@moc/db'
 import { authed, publicSelf } from '../auth'
 import { bus, db, topics } from '../context'
+import { blockedWith, isBlockedBetween } from '../blocks'
 
 const RoomIntent = t.Union([t.Literal('study'), t.Literal('friends')])
 
 export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
   .get('/', async ({ user, query }) => {
     const now = new Date()
-    const list = await db.select().from(rooms)
+    const blocked = await blockedWith(user.id)
+    const list = (await db.select().from(rooms)
       .where(and(eq(rooms.university, user.university), eq(rooms.intent, query.intent), gt(rooms.endsAt, now)))
-      .orderBy(rooms.startsAt)
+      .orderBy(rooms.startsAt)).filter((r) => !blocked.has(r.hostId))
     const members = list.length ? await db.select({ m: roomMembers, u: users }).from(roomMembers).innerJoin(users, eq(users.id, roomMembers.userId)).where(inArray(roomMembers.roomId, list.map((r) => r.id))) : []
     return {
       rooms: list.map((r) => {
@@ -40,7 +42,7 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
   }, { body: t.Object({ intent: RoomIntent, tag: t.String({ maxLength: 24 }), title: t.String({ maxLength: 80 }), place: t.String({ maxLength: 80 }), startsAt: t.String({ format: 'date-time' }), endsAt: t.String({ format: 'date-time' }), capacity: t.Integer({ minimum: 2, maximum: 50 }) }) })
   .post('/:id/request', async ({ user, params, status }) => {
     const [room] = await db.select().from(rooms).where(and(eq(rooms.id, params.id), eq(rooms.university, user.university))).limit(1)
-    if (!room || room.endsAt < new Date()) return status(404, { error: 'not_found' })
+    if (!room || room.endsAt < new Date() || (await isBlockedBetween(user.id, room.hostId))) return status(404, { error: 'not_found' })
     await db.insert(roomMembers).values({ roomId: room.id, userId: user.id, status: 'pending' }).onConflictDoNothing()
     bus.publish(topics.user(room.hostId), { type: 'room.request', roomId: room.id, from: publicSelf(user) })
     return { status: 'pending' }

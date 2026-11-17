@@ -8,6 +8,13 @@
       "when": 1794852722631,
       "tag": "0000_natural_speed",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794896722318,
+      "tag": "0001_heavy_red_ghost",
+      "breakpoints": true
     }
   ]
 }

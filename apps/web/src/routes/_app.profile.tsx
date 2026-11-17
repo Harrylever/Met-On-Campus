@@ -43,6 +43,8 @@ function Profile() {
       {/* key resets the form when switching modes so one mode's edits never bleed into another */}
       <ModeForm key={mode} mode={mode} profile={current} department={me.user.department} onSaved={() => router.invalidate()} />
 
+      <BlockedList />
+
       <button className="btn btn-ghost" onClick={() => logout.mutate()}>Sign out</button>
     </div>
   )
@@ -88,6 +90,28 @@ function ModeForm({ mode, profile, onSaved }: { mode: Intent; profile?: P; depar
       )}
       {save.isError && <p role="alert" className="text-sm text-danger">Could not save. Check the fields and try again.</p>}
       <button className="btn btn-i w-full" disabled={save.isPending} onClick={() => save.mutate()}>{save.isSuccess ? 'Saved' : 'Save profile'}</button>
+    </section>
+  )
+}
+
+function BlockedList() {
+  const qc = useQueryClient()
+  const list = useQuery({ queryKey: ['blocks'], queryFn: () => unwrap(api.blocks.get()) })
+  const unblock = useMutation({ mutationFn: (id: string) => unwrap(api.blocks({ userId: id }).delete()), onSuccess: () => qc.invalidateQueries() })
+  const blocked = list.data?.blocked ?? []
+  return (
+    <section className="card space-y-3">
+      <span className="label">Blocked students</span>
+      {blocked.length === 0 ? <p className="text-sm text-ink-2">You have not blocked anyone.</p> : (
+        <ul className="space-y-2">
+          {blocked.map((b) => (
+            <li key={b.id} className="flex items-center gap-3">
+              <span className="flex-1 text-sm"><b>{b.name}</b> <span className="text-ink-2">{b.level}L {b.department}</span></span>
+              <button className="btn btn-ghost h-10 px-3" disabled={unblock.isPending} onClick={() => unblock.mutate(b.id)}>Unblock</button>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }

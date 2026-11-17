@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs } from '~/components/ui'
+import { SafetyMenu } from '~/components/safety'
 
 export const Route = createFileRoute('/_app/discover')({ component: Discover })
 
@@ -80,6 +81,7 @@ function Discover() {
                     : <button className="btn btn-i flex-1" disabled={connect.isPending} onClick={() => connect.mutate(s.userId)}>{c.cta}</button>}
                   <button className="btn btn-ghost" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : s.userId)}>{isOpen ? 'Less' : 'More'}</button>
                 </div>
+                <SafetyMenu userId={s.userId} name={s.name} intent={intent} label={`Block or report ${s.name}`} />
               </div>
             </article>
           )

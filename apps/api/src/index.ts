@@ -5,6 +5,7 @@ import { authRoutes } from './auth'
 import { meRoutes } from './routes/me'
 import { discoverRoutes } from './routes/discover'
 import { connectionRoutes } from './routes/connections'
+import { safetyRoutes } from './routes/safety'
 import { roomRoutes } from './routes/rooms'
 import { presenceRoutes } from './routes/presence'
 import { wsRoutes } from './ws'
@@ -17,6 +18,7 @@ export const app = new Elysia()
   .use(discoverRoutes)
   .use(connectionRoutes)
   .use(roomRoutes)
+  .use(safetyRoutes)
   .use(presenceRoutes)
   .use(wsRoutes)
 

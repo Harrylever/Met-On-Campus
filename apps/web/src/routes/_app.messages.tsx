@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs, formatWhen } from '~/components/ui'
+import { SafetyMenu } from '~/components/safety'
 
 export const Route = createFileRoute('/_app/messages')({ component: Messages })
 
@@ -51,11 +52,19 @@ function Messages() {
 
       {current && (
         <section className="card flex flex-col gap-3">
-          <h2 className="text-[17px] font-semibold">{current.with.name} • {current.with.level}L {current.with.department}</h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-[17px] font-semibold">{current.with.name} • {current.with.level}L {current.with.department}</h2>
+            <SafetyMenu userId={current.with.id} name={current.with.name} intent={intent} label="Block or report" />
+          </div>
           <ol className="flex flex-col gap-2">
             {msgs.data?.messages.map((m) => {
               const mine = m.senderId === me.user.id
-              if (m.kind === 'text') return <li key={m.id} className={`max-w-[85%] rounded-2xl border px-3 py-2 ${mine ? 'self-end border-(--i-ink) bg-(--i-ink) text-white' : 'self-start border-(--i-line) bg-surface'}`}>{m.body}</li>
+              if (m.kind === 'text') return (
+                <li key={m.id} className={`flex max-w-[85%] flex-col gap-1 ${mine ? 'self-end items-end' : 'self-start items-start'}`}>
+                  <span className={`rounded-2xl border px-3 py-2 ${mine ? 'border-(--i-ink) bg-(--i-ink) text-white' : 'border-(--i-line) bg-surface'}`}>{m.body}</span>
+                  {!mine && <SafetyMenu userId={current.with.id} name={current.with.name} intent={intent} messageId={m.id} label="Report this message" />}
+                </li>
+              )
               return (
                 <li key={m.id} className="rounded-[12px] border border-(--i-line) bg-(--i-bg) p-3">
                   <span className="label text-(--i-ink)">Meetup proposal</span>

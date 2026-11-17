@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { intentProfiles, users } from '@moc/db'
 import { db } from './context'
+import { isBlockedBetween } from './blocks'
 
 export type Intent = 'study' | 'friends' | 'romance'
 type User = typeof users.$inferSelect
@@ -9,6 +10,7 @@ type User = typeof users.$inferSelect
 // Romance is mutual opt-in and honours "hide from my department" on either side.
 export async function canInteract(me: User, other: User, intent: Intent) {
   if (me.id === other.id || me.university !== other.university) return false
+  if (await isBlockedBetween(me.id, other.id)) return false
   const rows = await db.select().from(intentProfiles)
     .where(and(eq(intentProfiles.intent, intent), eq(intentProfiles.enabled, true)))
     .then((r) => r.filter((p) => p.userId === me.id || p.userId === other.id))

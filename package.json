@@ -13,6 +13,8 @@
     "db:generate": "bun run --filter @moc/db generate",
     "db:migrate": "bun run --filter @moc/db migrate",
     "typecheck": "bun run --filter '*' typecheck",
-    "db:seed": "bun run --filter @moc/db seed"
+    "db:seed": "bun run --filter @moc/db seed",
+    "test": "bun run --filter @moc/api test",
+    "test:setup": "createdb metoncampus_test || true"
   }
 }

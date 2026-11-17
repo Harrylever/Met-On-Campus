@@ -8,6 +8,8 @@ export const roomIntentEnum = pgEnum('room_intent', ['study', 'friends'])
 export const requestStatusEnum = pgEnum('request_status', ['pending', 'accepted', 'declined'])
 export const messageKindEnum = pgEnum('message_kind', ['text', 'meetup'])
 export const meetupStatusEnum = pgEnum('meetup_status', ['pending', 'confirmed', 'declined'])
+export const reportReasonEnum = pgEnum('report_reason', ['harassment', 'spam', 'fake_profile', 'inappropriate', 'unsafe', 'other'])
+export const reportStatusEnum = pgEnum('report_status', ['open', 'reviewed', 'dismissed'])
 export const memberStatusEnum = pgEnum('member_status', ['pending', 'approved', 'declined'])
 
 const id = () => uuid('id').primaryKey().defaultRandom()
@@ -107,6 +109,27 @@ export const roomMembers = pgTable('room_members', {
   status: memberStatusEnum('status').notNull().default('pending'),
   createdAt: createdAt(),
 }, (t) => [primaryKey({ columns: [t.roomId, t.userId] })])
+
+// A block hides both people from each other everywhere (discover, rooms, chats, new connections).
+export const blocks = pgTable('blocks', {
+  blockerId: uuid('blocker_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  blockedId: uuid('blocked_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: createdAt(),
+}, (t) => [primaryKey({ columns: [t.blockerId, t.blockedId] }), index('blocks_blocked_idx').on(t.blockedId), check('no_self_block', sql`${t.blockerId} <> ${t.blockedId}`)])
+
+// Reports are kept even if the message is later deleted, so reviewers still see what was reported.
+export const reports = pgTable('reports', {
+  id: id(),
+  reporterId: uuid('reporter_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reportedId: uuid('reported_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reason: reportReasonEnum('reason').notNull(),
+  details: text('details').notNull().default(''),
+  intent: intentEnum('intent'), // which mode it happened in, when known
+  messageId: uuid('message_id').references(() => messages.id, { onDelete: 'set null' }),
+  messageSnapshot: text('message_snapshot'),
+  status: reportStatusEnum('status').notNull().default('open'),
+  createdAt: createdAt(),
+}, (t) => [index('reports_status_idx').on(t.status, t.createdAt), index('reports_reported_idx').on(t.reportedId)])
 
 export const userRelations = relations(users, ({ many }) => ({ profiles: many(intentProfiles) }))
 export const profileRelations = relations(intentProfiles, ({ one }) => ({ user: one(users, { fields: [intentProfiles.userId], references: [users.id] }) }))
