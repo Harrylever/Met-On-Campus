@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs } from '~/components/ui'
+import { PROMPT_SUGGESTIONS, createSuggester } from '~/lib/prompts'
 
 export const Route = createFileRoute('/_app/profile')({ component: Profile })
 
@@ -59,6 +60,19 @@ type P = NonNullable<ReturnType<typeof Route.useRouteContext>['me']['profiles'][
 function ModeForm({ mode, profile, meta, onSaved }: { mode: Intent; profile?: P; meta: Meta; onSaved: () => void }) {
   const [enabled, setEnabled] = useState(profile?.enabled ?? false)
   const [prompt, setPrompt] = useState(profile?.prompt ?? '')
+  // Prompt suggestions: one shuffled pass per mode. `undo` holds what the person had typed if a suggestion replaced it.
+  const nextSuggestion = useState(() => createSuggester(mode))[0]
+  const [suggested, setSuggested] = useState(false)
+  const [undo, setUndo] = useState<string | null>(null)
+  const [spins, setSpins] = useState(0)
+  const promptId = useId()
+  const suggest = () => {
+    const wroteItThemselves = prompt.trim() !== '' && !PROMPT_SUGGESTIONS[mode].includes(prompt)
+    setUndo(wroteItThemselves ? prompt : null)
+    setPrompt(nextSuggestion(prompt))
+    setSuggested(true)
+    setSpins((n) => n + 1)
+  }
   const [bio, setBio] = useState(profile?.bio ?? '')
   const [tags, setTags] = useState((profile?.tags ?? []).join(', '))
   // "Usually free" is stored as one line. Presets that match become chips; anything else is the custom note.
@@ -87,7 +101,25 @@ function ModeForm({ mode, profile, meta, onSaved }: { mode: Intent; profile?: P;
         <span>{mode[0]!.toUpperCase() + mode.slice(1)} Mode is {enabled ? 'on' : 'off'}</span>
         <input type="checkbox" role="switch" className="size-6" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
       </label>
-      <label className={field}>Prompt<input className="input mt-2 font-normal" maxLength={160} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="One line that starts a conversation" /></label>
+      <div>
+        <label htmlFor={promptId} className={field}>Prompt</label>
+        {/* The button sits inside the input's right edge. It fills the field with a ready-made prompt (see lib/prompts.ts). */}
+        <div className="relative mt-2">
+          <input id={promptId} className="input pr-12 font-normal" maxLength={160} value={prompt}
+            onChange={(e) => { setPrompt(e.target.value); setSuggested(false); setUndo(null) }} placeholder="One line that starts a conversation" />
+          <button type="button" onClick={suggest} aria-label="Suggest a prompt" title="Suggest a prompt"
+            className="absolute right-1 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-(--i-ink) hover:bg-(--i-bg)">
+            <svg viewBox="0 0 24 24" className="size-5 transition-transform duration-300 ease-out motion-reduce:transition-none" style={{ transform: `rotate(${spins * 180}deg)` }}
+              fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 11a8 8 0 0 0-14.9-3M4 5v4h4M4 13a8 8 0 0 0 14.9 3M20 19v-4h-4" />
+            </svg>
+          </button>
+        </div>
+        <p className="mt-1.5 min-h-5 text-xs text-ink-2" aria-live="polite">
+          {suggested ? 'A suggestion. Edit it to make it yours, or tap the arrows for another.' : 'Not sure what to write? Tap the arrows for an idea.'}
+          {undo !== null && <> <button type="button" className="font-semibold text-(--i-ink) underline underline-offset-2" onClick={() => { setPrompt(undo); setUndo(null); setSuggested(false) }}>Undo</button></>}
+        </p>
+      </div>
       <label className={field}>About<textarea className="input mt-2 h-24 py-2 font-normal" maxLength={400} value={bio} onChange={(e) => setBio(e.target.value)} /></label>
       <label className={field}>Tags (comma separated, up to 6)<input className="input mt-2 font-normal" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="CSS 411, Football" /></label>
       <fieldset className="space-y-2">
