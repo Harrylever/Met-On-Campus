@@ -28,6 +28,14 @@ bun run test         # API tests: visibility rules, auth + rate limits, blocking
 ```
 Tests run in-process against a real Postgres and Redis (db 15). They truncate tables and flush Redis, so the setup refuses any database whose name doesn't end in `_test`. CI (`.github/workflows/ci.yml`) runs build, typecheck and tests on every push and PR.
 
+## Deploy
+- **API + Postgres + Redis: Railway**, defined in `.railway/railway.ts` (`railway config plan` / `apply`). Custom domains are added with `railway domain`, not in the file's IaC engine. The API listens on `PORT`.
+- **Web: Vercel.** The Vite build uses `nitro()`, which emits Vercel's output format when it detects `VERCEL=1`. Without it the deploy builds but every route 404s. Project settings:
+  - Root Directory `apps/web`, with "Include source files outside of the Root Directory" on (the app imports the API's types from the workspace).
+  - Framework Preset: TanStack Start (or `{ "framework": "tanstack-start" }` in `vercel.json` if detection fails in the monorepo).
+  - Env var `VITE_API_URL=https://<api host>`. It is read at build time, so redeploy after changing it.
+  - The API's login cookie is `SameSite=Lax`, so the web and API hosts must share a parent domain (`app.` and the API host under the same site), and the API's `WEB_ORIGIN` must equal the web origin exactly.
+
 ## Design decisions
 - **Modes never mix.** `intent_profiles` has one row per (user, mode); conversations are unique per (intent, pair) and the inbox API requires `intent`.
 - **Romance is mutual opt-in** and honours "hide from my department" on either side (`apps/api/src/visibility.ts`).
