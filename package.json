@@ -16,5 +16,8 @@
     "db:seed": "bun run --filter @moc/db seed",
     "test": "bun run --filter @moc/api test",
     "test:setup": "createdb metoncampus_test || true"
+  },
+  "devDependencies": {
+    "railway": "^3.17.0"
   }
 }

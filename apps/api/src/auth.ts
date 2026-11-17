@@ -37,6 +37,9 @@ export const authed = new Elysia({ name: 'authed' }).resolve({ as: 'scoped' }, a
 
 function clientIp(request: Request, server: { requestIP(r: Request): { address: string } | null } | null) {
   if (env.trustProxy) {
+    // Railway's public edge overwrites both headers on every request; X-Real-IP is the documented one.
+    const real = request.headers.get('x-real-ip')?.trim()
+    if (real) return real
     const fwd = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     if (fwd) return fwd
   }

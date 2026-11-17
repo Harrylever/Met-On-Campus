@@ -1,0 +1,71 @@
+import {
+  defineRailway,
+  github,
+  postgres,
+  preserve,
+  project,
+  redis,
+  service,
+  volume,
+} from "railway/iac"
+
+export default defineRailway(() => {
+  const Postgres = postgres("Postgres", { region: "asia-southeast1-eqsg3a" })
+  Postgres.networking = { privateNetworkEndpoint: "postgres" }
+  const Redis = redis("Redis", { region: "asia-southeast1-eqsg3a" })
+  Redis.deploy = {
+    startCommand:
+      '/bin/sh -c "rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH"',
+  }
+  Redis.networking = { privateNetworkEndpoint: "redis" }
+  const redisVolume = volume("redis-volume", {
+    alerts: { usage: { "100": {}, "80": {}, "95": {} } },
+    allowOnlineResize: true,
+    region: "asia-southeast1-eqsg3a",
+    sizeMB: 5000,
+  })
+  const postgresVolume = volume("postgres-volume", {
+    alerts: { usage: { "100": {}, "80": {}, "95": {} } },
+    allowOnlineResize: true,
+    region: "asia-southeast1-eqsg3a",
+    sizeMB: 5000,
+  })
+  const _mocapi = service("@moc/api", {
+    source: github("Harrylever/Met-On-Campus", {
+      branch: "main",
+      checkSuites: false,
+    }),
+    build: {
+      buildEnvironment: "V3",
+      builder: "RAILPACK",
+      watchPatterns: ["/apps/api/**"],
+    },
+    start: "bun run --filter=@moc/api start",
+    // Runs before each deploy goes live; a failed migration aborts the release and keeps the old version serving.
+    preDeploy: "bun run db:migrate",
+    healthcheck: "/health",
+    // Cookies are SameSite=Lax, so the API and the web app (Vercel) must share a parent domain.
+    // Registered in the dashboard/CLI (IaC cannot create custom domains); listed here to stay in sync.
+    domains: ["jeer.metoncampus.xyz"],
+    replicas: { "asia-southeast1-eqsg3a": 1 },
+    networking: { privateNetworkEndpoint: "mocapi" },
+    env: {
+      PORT: "8080", // must match the domain's target port; the API reads PORT
+      NODE_ENV: "production", // Secure cookies, and the API refuses to boot without a Resend key
+      TRUST_PROXY: "true", // Railway's edge sets X-Real-IP; needed so rate limits are per user, not per proxy
+      WEB_ORIGIN: "https://app.metoncampus.xyz", // the single origin allowed by CORS
+      ALLOWED_EMAIL_SUFFIXES: ".edu.ng",
+      PRESENCE_TTL_SECONDS: "90",
+      EMAIL_FROM: "Met On Campus <noreply@yes.metoncampus.xyz>",
+      // Secrets and connection strings stay in Railway; the file only keeps them managed.
+      DATABASE_URL: preserve(),
+      REDIS_URL: preserve(),
+      RESEND_API_KEY: preserve(),
+    },
+  })
+
+  return project("ravishing-freedom", {
+    variables: { managed: true },
+    resources: [Postgres, Redis, _mocapi, redisVolume, postgresVolume],
+  })
+})

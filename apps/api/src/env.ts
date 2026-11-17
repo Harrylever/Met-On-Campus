@@ -5,7 +5,8 @@ export const env = {
   databaseUrl:
     process.env.DATABASE_URL ?? "postgres://localhost:5432/metoncampus_dev",
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
-  port: num(process.env.API_PORT, 3001),
+  // Hosts like Railway inject PORT; API_PORT is the local-dev override.
+  port: num(process.env.PORT ?? process.env.API_PORT, 3001),
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
   emailSuffixes: (process.env.ALLOWED_EMAIL_SUFFIXES ?? ".edu.ng")
     .split(",")
