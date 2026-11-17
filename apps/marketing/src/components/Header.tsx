@@ -12,7 +12,7 @@ const links = [
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-canvas/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-line bg-canvas/90 backdrop-blur print:hidden">
       <div className="container-x flex h-16 items-center justify-between gap-4">
         <Link href="/" aria-label="Met On Campus, home"><Brand /></Link>
         <nav aria-label="Main" className="hidden items-center gap-7 text-[15px] font-medium text-ink-2 md:flex">

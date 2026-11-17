@@ -128,7 +128,18 @@ export default function Home() {
         <div className="rounded-[2rem] bg-ink px-6 py-14 text-canvas sm:px-12 md:py-20">
           <h2 className="max-w-[16ch] text-[clamp(2.25rem,5.5vw,4rem)]">Come meet your campus.</h2>
           <p className="mt-4 max-w-[46ch] text-lg opacity-80">It takes a school email and about a minute.</p>
-          <a href={site.appUrl} className="mt-8 inline-flex h-12 items-center rounded-full bg-canvas px-6 text-base font-semibold text-ink transition hover:opacity-90">Open the app</a>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a href={site.appUrl} className="inline-flex h-12 items-center rounded-full bg-canvas px-6 text-base font-semibold text-ink transition hover:opacity-90">Open the app</a>
+            {/* Outline style on the dark banner: clearly secondary, still 48px tall and high contrast. */}
+            <Link href="/join" className="inline-flex h-12 items-center gap-2.5 rounded-full border border-canvas/40 px-6 text-base font-semibold text-canvas transition hover:border-canvas">
+              {/* QR-scan glyph: corner brackets around small squares. Decorative; the label carries the meaning. */}
+              <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
+                <rect x="8.5" y="8.5" width="2.5" height="2.5" rx="0.4" /><rect x="13" y="8.5" width="2.5" height="2.5" rx="0.4" /><rect x="8.5" y="13" width="2.5" height="2.5" rx="0.4" /><path d="M13.2 14.2h2.3" />
+              </svg>
+              Scan to join
+            </Link>
+          </div>
         </div>
       </section>
     </>

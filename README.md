@@ -26,6 +26,7 @@ Dev sign-in: request a code for any `*.edu.ng` address. With `RESEND_API_KEY` em
 ## Marketing site
 `apps/marketing` is a static Next.js site for the root domain: home (with an interactive mode preview), safety, universities, terms and privacy. It sets no cookies, loads no analytics, and every call to action points at the app (`NEXT_PUBLIC_APP_URL`).
 
+- `/join` is a "scan to join" page for showing people: a large QR code for `NEXT_PUBLIC_APP_URL` (always dark on white, even in dark mode), the typed address, three steps, PNG/SVG downloads for posters and chats, and a print layout. The code is generated at build time in `src/lib/qr.ts`; if the app URL changes, rebuild and redownload the files. It is noindexed and not in the sitemap.
 - Local: `bun run dev` (marketing on :3200).
 - Env (not secret, baked into the build): `NEXT_PUBLIC_SITE_URL` (default `https://metoncampus.xyz`), `NEXT_PUBLIC_APP_URL` (default `https://app.metoncampus.xyz`), `NEXT_PUBLIC_CONTACT_EMAIL` (defaults to `hello@metoncampus.xyz`, which Cloudflare Email Routing forwards to a personal inbox; set the variable only to override it). If it is ever set to empty, the universities and legal pages say contact details are coming.
 - Vercel (new project): Root Directory `apps/marketing`, "Include source files outside of the Root Directory" on. Add the domain `metoncampus.xyz` and redirect `www.metoncampus.xyz` to it.
