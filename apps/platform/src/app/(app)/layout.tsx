@@ -5,13 +5,13 @@ import { Brand } from '~/components/ui'
 import { Sidebar, type NavItem } from './Sidebar'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const me = await adminData<{ email: string; backupCodesLeft: number; openReports: number }>('/admin/me')
+  const me = await adminData<{ email: string; backupCodesLeft: number; openReports: number; departmentRequests: number }>('/admin/me')
   const collapsed = (await cookies()).get('moc_sidebar')?.value === '1'
   const items: NavItem[] = [
     { href: '/', label: 'Overview', icon: 'overview' },
     { href: '/reports', label: 'Reports', icon: 'reports', badge: me.openReports },
     { href: '/users', label: 'Users', icon: 'users' },
-    { href: '/departments', label: 'Departments', icon: 'departments' },
+    { href: '/departments', label: 'Departments', icon: 'departments', badge: me.departmentRequests },
     { href: '/spots', label: 'Campus spots', icon: 'spots' },
     { href: '/activity', label: 'Activity', icon: 'activity' },
     { href: '/health', label: 'Health', icon: 'health' },

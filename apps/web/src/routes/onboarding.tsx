@@ -3,6 +3,9 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { Brand, VerifiedPill } from '~/components/ui'
+import { DepartmentRequest } from '~/components/DepartmentRequest'
+
+const NOT_LISTED = '__not_listed__'
 
 export const Route = createFileRoute('/onboarding')({ ssr: false,
   beforeLoad: async () => {
@@ -28,13 +31,17 @@ function Onboarding() {
   const meta = useQuery({ queryKey: ['meta'], queryFn: () => unwrap(api.meta.get()) })
   const departments = meta.data?.departments ?? []
   const [chosenDept, setDepartment] = useState('')
-  const department = chosenDept || departments[0] || ''
+  // "My department isn't listed": they can finish signing up once a request is sent, and show as "Department pending".
+  const [notListed, setNotListed] = useState(false)
+  const requests = useQuery({ queryKey: ['dept-requests'], queryFn: () => unwrap(api.me['department-requests'].get()) })
+  const hasPending = !!requests.data?.requests.some((r) => r.status === 'pending')
+  const department = notListed ? '' : chosenDept || departments[0] || ''
   const [level, setLevel] = useState(400)
   const any = Object.values(on).some(Boolean)
 
   const save = useMutation({
     mutationFn: async () => {
-      await unwrap(api.me.patch({ department, level }))
+      await unwrap(api.me.patch(department ? { department, level } : { level }))
       await Promise.all(INTENTS.filter((i) => on[i.id]).map((i) =>
         unwrap(api.me.profiles({ intent: i.id }).put({ enabled: true, ...(i.id === 'romance' ? { hideFromDepartment: hideDept } : {}) }))))
     },
@@ -71,15 +78,17 @@ function Onboarding() {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <label className="space-y-2 text-sm font-semibold">Department
-          <select className="input mt-2 h-11 font-normal" value={department} onChange={(e) => setDepartment(e.target.value)}>{departments.length === 0 && <option value="">{meta.isError ? 'Could not load departments' : 'Loading…'}</option>}{departments.map((d) => <option key={d}>{d}</option>)}</select>
+          <select className="input mt-2 h-11 font-normal" value={notListed ? NOT_LISTED : department} onChange={(e) => { const v = e.target.value; setNotListed(v === NOT_LISTED); if (v !== NOT_LISTED) setDepartment(v) }}>{departments.length === 0 && <option value="">{meta.isError ? 'Could not load departments' : 'Loading…'}</option>}{departments.map((d) => <option key={d}>{d}</option>)}<option value={NOT_LISTED}>My department isn&apos;t listed</option></select>
         </label>
         <label className="space-y-2 text-sm font-semibold">Level
           <select className="input mt-2 h-11 font-normal" value={level} onChange={(e) => setLevel(+e.target.value)}>{[100, 200, 300, 400, 500].map((l) => <option key={l} value={l}>{l}L</option>)}</select>
         </label>
       </div>
+      {notListed && <DepartmentRequest open />}
       <div className="mt-auto space-y-2">
-        <button className="btn w-full" disabled={!any || !department || save.isPending} onClick={() => save.mutate()}>Enter Campus</button>
+        <button className="btn w-full" disabled={!any || !(department || hasPending) || save.isPending} onClick={() => save.mutate()}>Enter Campus</button>
         {!any && <p className="text-center text-[13px] text-ink-2">Turn on at least one mode to continue.</p>}
+        {any && notListed && !hasPending && <p className="text-center text-[13px] text-ink-2">Send your department request above, then you can enter.</p>}
       </div>
     </main>
   )

@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { and, eq, inArray, or } from 'drizzle-orm'
-import { connectionRequests, intentProfiles, users } from '@moc/db'
+import { connectionRequests, intentProfiles, NO_DEPARTMENT, users } from '@moc/db'
 import { authed } from '../auth'
 import { db } from '../context'
 import * as presence from '../presence'
@@ -26,7 +26,7 @@ export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
         if (u.id === user.id || blocked.has(u.id)) return false
         if (query.department && u.department !== query.department) return false
         if (query.level && u.level !== query.level) return false
-        const sameDept = u.department === user.department
+        const sameDept = user.department !== NO_DEPARTMENT && u.department === user.department
         return !(intent === 'romance' && sameDept && (p.hideFromDepartment || mine.hideFromDepartment))
       })
       .map(({ u, p }) => {

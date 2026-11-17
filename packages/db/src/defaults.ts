@@ -2,3 +2,6 @@
 // one both begin here; staff change them from the platform afterwards.
 export const DEFAULT_DEPARTMENTS = ['Cyber Security', 'Computer Science', 'Information Technology', 'Electrical Engineering'] as const
 export const DEFAULT_SPOTS = ['University Library', 'Senate Building Lounge', 'Faculty Quad', 'Student Union Cafeteria', 'ICT Centre', 'School Field'] as const
+
+// Stored for a student who has not got a department yet (e.g. while a request for theirs is pending). Never counts as "the same department".
+export const NO_DEPARTMENT = 'Unspecified'

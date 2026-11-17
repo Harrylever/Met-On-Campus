@@ -1,4 +1,4 @@
-import { Link, Outlet, createFileRoute, redirect } from '@tanstack/react-router'
+import { Link, Outlet, createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { api } from '~/lib/api'
 import { useRealtime } from '~/lib/realtime'
 import { Brand, VerifiedPill } from '~/components/ui'
@@ -18,7 +18,9 @@ const NAV = [{ to: '/discover', label: 'Discover' }, { to: '/rooms', label: 'Roo
 function Shell() {
   const { me } = Route.useRouteContext()
   // Having the app open counts as "On Campus Now" until we add geofencing / a manual toggle.
-  const { onCampusNow } = useRealtime({ onCampus: true })
+  const router = useRouter()
+  // When staff decide a department request, reload the signed-in user so their own department updates too.
+  const { onCampusNow } = useRealtime({ onCampus: true, onDepartmentDecision: () => router.invalidate() })
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col lg:max-w-6xl">
       <header className="flex flex-col gap-3 px-4 pt-5 lg:flex-row lg:items-center lg:justify-between">

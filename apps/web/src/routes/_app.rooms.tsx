@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, type Intent } from '~/lib/api'
 import { IntentTabs, formatWhen } from '~/components/ui'
+import { deptLabel } from '~/lib/dept'
 
 const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 
@@ -78,7 +79,7 @@ function HostRequests({ roomId, full }: { roomId: string; full: boolean }) {
     <ul className="space-y-2 border-t border-line pt-3">
       {reqs.data.requests.map((u) => (
         <li key={u.id} className="flex items-center gap-2">
-          <span className="flex-1 text-sm"><b>{u.name}</b> <span className="text-ink-2">{u.level}L {u.department}</span></span>
+          <span className="flex-1 text-sm"><b>{u.name}</b> <span className="text-ink-2">{u.level}L {deptLabel(u.department)}</span></span>
           <button className="btn btn-i h-10 px-3" disabled={full || decide.isPending} onClick={() => decide.mutate({ userId: u.id, decision: 'approved' })}>Approve</button>
           <button className="btn btn-ghost h-10 px-3" disabled={decide.isPending} onClick={() => decide.mutate({ userId: u.id, decision: 'declined' })}>Decline</button>
         </li>

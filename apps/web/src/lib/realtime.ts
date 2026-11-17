@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
 
@@ -7,9 +7,12 @@ import { api } from './api'
  * - sends a presence frame every 30s so the server keeps us "On Campus Now" (Redis TTL is 90s)
  * - turns server pushes into query invalidations
  */
-export function useRealtime(opts: { onCampus: boolean; place?: string }) {
+export function useRealtime(opts: { onCampus: boolean; place?: string; onDepartmentDecision?: () => void }) {
   const qc = useQueryClient()
   const [count, setCount] = useState<number | null>(null)
+  // Latest callback without reconnecting the socket each render.
+  const decided = useRef(opts.onDepartmentDecision)
+  decided.current = opts.onDepartmentDecision
 
   useEffect(() => {
     let closed = false
@@ -28,6 +31,7 @@ export function useRealtime(opts: { onCampus: boolean; place?: string }) {
         }
         if (m.type?.startsWith('connection.')) qc.invalidateQueries({ queryKey: ['conversations'] })
         if (m.type?.startsWith('room.')) qc.invalidateQueries({ queryKey: ['rooms'] })
+        if (m.type === 'department.request') { qc.invalidateQueries({ queryKey: ['dept-requests'] }); qc.invalidateQueries({ queryKey: ['meta'] }); decided.current?.() }
         if (m.type === 'presence.count') qc.invalidateQueries({ queryKey: ['discover'] })
       })
       ws.on('open', () => {

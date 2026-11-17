@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs, formatWhen } from '~/components/ui'
+import { deptLabel } from '~/lib/dept'
 import { SafetyMenu } from '~/components/safety'
 
 export const Route = createFileRoute('/_app/messages')({ component: Messages })
@@ -53,7 +54,7 @@ function Messages() {
       {current && (
         <section className="card flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-[17px] font-semibold">{current.with.name} • {current.with.level}L {current.with.department}</h2>
+            <h2 className="text-[17px] font-semibold">{current.with.name} • {current.with.level}L {deptLabel(current.with.department)}</h2>
             <SafetyMenu userId={current.with.id} name={current.with.name} intent={intent} label="Block or report" />
           </div>
           <ol className="flex flex-col gap-2">

@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs } from '~/components/ui'
+import { deptLabel } from '~/lib/dept'
 import { SafetyMenu } from '~/components/safety'
 
 export const Route = createFileRoute('/_app/discover')({ component: Discover })
@@ -46,7 +47,7 @@ function Discover() {
         </section>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="Department">
           <button className="chip" aria-pressed={!dept} onClick={() => setDept('')}>All departments</button>
-          {depts.map((d) => <button key={d} className="chip" aria-pressed={dept === d} onClick={() => setDept(d)}>{d}</button>)}
+          {depts.map((d) => <button key={d} className="chip" aria-pressed={dept === d} onClick={() => setDept(d)}>{deptLabel(d)}</button>)}
         </div>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="Level">
           <button className="chip" aria-pressed={!level} onClick={() => setLevel('')}>All levels</button>
@@ -69,7 +70,7 @@ function Discover() {
               </div>
               <div className="flex flex-col gap-3 p-4 pt-1">
                 <div>
-                  <h2 className="text-[17px] font-semibold">{s.name} • {s.level}L {s.department}</h2>
+                  <h2 className="text-[17px] font-semibold">{s.name} • {s.level}L {deptLabel(s.department)}</h2>
                   <span className="text-[13px] text-ink-2">{s.usualSpot ? `Usually at ${s.usualSpot}` : 'On campus'}</span>
                 </div>
                 {s.prompt && <div className="rounded-[10px] border border-(--i-line) bg-(--i-bg) p-3"><span className="label text-(--i-ink)">{c.label}</span><p className="mt-1">{s.prompt}</p></div>}

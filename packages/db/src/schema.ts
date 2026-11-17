@@ -12,6 +12,7 @@ export const reportReasonEnum = pgEnum('report_reason', ['harassment', 'spam', '
 export const reportStatusEnum = pgEnum('report_status', ['open', 'reviewed', 'dismissed'])
 export const userStatusEnum = pgEnum('user_status', ['active', 'suspended'])
 export const moderationActionEnum = pgEnum('moderation_action', ['dismiss', 'warn', 'suspend', 'unsuspend'])
+export const departmentRequestStatusEnum = pgEnum('department_request_status', ['pending', 'approved', 'declined', 'withdrawn'])
 export const memberStatusEnum = pgEnum('member_status', ['pending', 'approved', 'declined'])
 
 const id = () => uuid('id').primaryKey().defaultRandom()
@@ -158,6 +159,24 @@ export const campusSpots = pgTable('campus_spots', {
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('campus_spots_name_campus').on(sql`lower(${t.name})`, sql`coalesce(${t.university}, '')`)])
+
+// A student whose department is not listed asks for it. Staff approve it (as new, or by pointing at an existing one) or
+// decline with a short reason. Requests for the same name on the same campus are resolved together.
+export const departmentRequests = pgTable('department_requests', {
+  id: id(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  university: text('university').notNull(), // the requester's campus at the time
+  name: text('name').notNull(),
+  status: departmentRequestStatusEnum('status').notNull().default('pending'),
+  resolvedName: text('resolved_name'), // the department it became, when approved
+  note: text('note'), // staff's reason, shown to the student when declined
+  reviewedBy: uuid('reviewed_by'), // admin_users.id (no FK so deleting an admin keeps the history)
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [
+  uniqueIndex('department_requests_one_pending').on(t.userId).where(sql`${t.status} = 'pending'`), // one open request per student
+  index('department_requests_campus_idx').on(t.university, t.status),
+])
 
 // ---- Platform (staff) ----------------------------------------------------------------------------
 // Staff are separate from students: own table, own sessions, own audit trail. Created only by the

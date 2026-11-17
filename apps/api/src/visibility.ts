@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { intentProfiles, users } from '@moc/db'
+import { intentProfiles, NO_DEPARTMENT, users } from '@moc/db'
 import { db } from './context'
 import { isBlockedBetween } from './blocks'
 
@@ -17,7 +17,7 @@ export async function canInteract(me: User, other: User, intent: Intent) {
   const mine = rows.find((p) => p.userId === me.id)
   const theirs = rows.find((p) => p.userId === other.id)
   if (!mine || !theirs) return false
-  if (intent === 'romance' && me.department === other.department && (mine.hideFromDepartment || theirs.hideFromDepartment)) return false
+  if (intent === 'romance' && me.department !== NO_DEPARTMENT && me.department === other.department && (mine.hideFromDepartment || theirs.hideFromDepartment)) return false
   return true
 }
 

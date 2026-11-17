@@ -35,6 +35,10 @@ async function activeNames(table: ListTable, university: string): Promise<string
 export const departmentsFor = (university: string) => activeNames(departments, university)
 export const spotsFor = (university: string) => activeNames(campusSpots, university)
 
+// Letters, digits and ordinary punctuation only: these names are shown to students and stored as plain text.
+const NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} .,'&()\/-]{1,59}$/u
+export const validListName = (s: string) => NAME_RE.test(s)
+
 /** Tidy a name from a form: trim and collapse runs of whitespace. */
 export const tidy = (s: string) => s.trim().replace(/\s+/g, " ")
 

@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs } from '~/components/ui'
 import { PROMPT_SUGGESTIONS, createSuggester } from '~/lib/prompts'
+import { deptLabel } from '~/lib/dept'
+import { DepartmentRequest } from '~/components/DepartmentRequest'
 
 export const Route = createFileRoute('/_app/profile')({ component: Profile })
 
@@ -35,11 +37,12 @@ function Profile() {
         <div className="grid grid-cols-2 gap-3">
           <label className="block text-sm font-semibold">Department
             <select className="input mt-2 h-11 font-normal" value={department} onChange={(e) => setDepartment(e.target.value)}>
-              {[...new Set([department, ...(meta.data?.departments ?? [])])].map((d) => <option key={d}>{d}</option>)}
+              {[...new Set([department, ...(meta.data?.departments ?? [])])].map((d) => <option key={d} value={d}>{deptLabel(d)}</option>)}
             </select></label>
           <label className="block text-sm font-semibold">Level
             <select className="input mt-2 h-11 font-normal" value={level} onChange={(e) => setLevel(+e.target.value)}>{[100, 200, 300, 400, 500].map((l) => <option key={l} value={l}>{l}L</option>)}</select></label>
         </div>
+        <DepartmentRequest />
         <button className="btn" disabled={saveBasics.isPending || !name.trim()} onClick={() => saveBasics.mutate()}>{saveBasics.isSuccess ? 'Saved' : 'Save'}</button>
       </section>
 
@@ -159,7 +162,7 @@ function BlockedList() {
         <ul className="space-y-2">
           {blocked.map((b) => (
             <li key={b.id} className="flex items-center gap-3">
-              <span className="flex-1 text-sm"><b>{b.name}</b> <span className="text-ink-2">{b.level}L {b.department}</span></span>
+              <span className="flex-1 text-sm"><b>{b.name}</b> <span className="text-ink-2">{b.level}L {deptLabel(b.department)}</span></span>
               <button className="btn btn-ghost h-10 px-3" disabled={unblock.isPending} onClick={() => unblock.mutate(b.id)}>Unblock</button>
             </li>
           ))}

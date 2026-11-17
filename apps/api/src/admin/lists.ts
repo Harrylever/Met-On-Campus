@@ -2,16 +2,14 @@ import { Elysia, t } from 'elysia'
 import { and, eq, sql } from 'drizzle-orm'
 import { campusSpots, departments, intentProfiles, users } from '@moc/db'
 import { db } from '../context'
-import { tidy } from '../lists'
+import { tidy, validListName } from '../lists'
 import { adminAuthed, audit } from './session'
 
 type Kind = 'departments' | 'spots'
 const table = { departments, spots: campusSpots } as const
 const label = { departments: 'department', spots: 'spot' } as const
 
-// Letters, digits and ordinary punctuation only: these names are shown to students and stored as plain text.
-const NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} .,'&()\/-]{1,59}$/u
-const validName = (s: string) => NAME_RE.test(s)
+const validName = validListName
 
 /** How many students use each entry: users for departments, profiles that name it as a usual spot for spots. */
 async function usageCounts(kind: Kind): Promise<{ name: string; university: string; n: number }[]> {
