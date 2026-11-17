@@ -11,11 +11,17 @@ const MESSAGES: Record<string, string> = {
   photos_unavailable: 'Photo uploads are not available right now.',
 }
 
+const DISMISSED_KEY = 'moc.dismissedPhotoNotes'
+// Rejection notes the student closed, remembered on this device only (storage can be blocked, so never rely on it).
+const readDismissed = (): string[] => { try { const v = JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? '[]'); return Array.isArray(v) ? v : [] } catch { return [] } }
+
 /** One photo per mode. It goes to our team first; until they approve it nobody else sees it. */
 export function PhotoField({ mode, modeOn, name }: { mode: Intent; modeOn: boolean; name: string }) {
   const qc = useQueryClient()
   const input = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
+  const [dismissed, setDismissed] = useState<string[]>(readDismissed)
+  const dismiss = (id: string) => { const next = [...dismissed, id].slice(-20); setDismissed(next); try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)) } catch { /* shown again next visit; harmless */ } }
   const list = useQuery({ queryKey: ['photos'], queryFn: () => unwrap(api.me.photos.get()) })
   const refresh = () => qc.invalidateQueries({ queryKey: ['photos'] })
 
@@ -54,9 +60,12 @@ export function PhotoField({ mode, modeOn, name }: { mode: Intent; modeOn: boole
       </div>
       {!modeOn && <p className="text-xs text-ink-2">Turn this mode on and save to add a photo.</p>}
       {p?.pending && <p className="rounded-[10px] bg-subtle p-3 text-sm text-ink">{p.approved ? 'Your new photo is waiting for review. Your current photo stays up until it is approved.' : 'Your photo is waiting for review. Only you can see it until our team approves it.'}</p>}
-      {p?.rejected && <p role="status" className="rounded-[10px] bg-romance-bg p-3 text-sm text-romance-ink">We could not approve your last photo.{p.rejected.note ? ` ${p.rejected.note}` : ''}</p>}
+      {p?.rejected && !dismissed.includes(p.rejected.id) && (
+        <p role="status" className="rounded-[10px] bg-romance-bg p-3 text-sm text-romance-ink">We could not approve your last photo.{p.rejected.note ? ` ${p.rejected.note}` : ''}{' '}
+          <button type="button" className="font-semibold underline underline-offset-2" onClick={() => dismiss(p.rejected!.id)}>Dismiss</button></p>
+      )}
       {p?.approved && !p.pending && <p className="text-xs text-ink-2">{mode === 'romance' ? 'Shown only to people you match with.' : 'Shown on your profile card to other students in this mode.'}</p>}
-      {!p?.approved && !p?.pending && !p?.rejected && <p className="text-xs text-ink-2">A clear photo of you. Our team checks every photo before anyone else sees it.{mode === 'romance' ? ' In Romance it is shown only after a match.' : ''}</p>}
+      {!p?.approved && !p?.pending && (!p?.rejected || dismissed.includes(p.rejected.id)) && <p className="text-xs text-ink-2">A clear photo of you. Our team checks every photo before anyone else sees it.{mode === 'romance' ? ' In Romance it is shown only after a match.' : ''}</p>}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     </div>
   )
