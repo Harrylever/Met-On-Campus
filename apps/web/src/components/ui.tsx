@@ -26,11 +26,20 @@ export function IntentTabs({ value, onChange, options, counts }: {
   value: Intent; onChange: (i: Intent) => void
   options: { id: Intent; label: string }[]; counts?: Partial<Record<Intent, number>>
 }) {
+  const n = options.length
+  const index = options.findIndex((o) => o.id === value)
   return (
-    <div role="group" className="flex rounded-full bg-subtle p-1">
+    <div role="group" className="relative grid rounded-full bg-subtle p-1" style={{ gridTemplateColumns: `repeat(${Math.max(n, 1)}, minmax(0, 1fr))` }}>
+      {/* One shared pill slides to the active tab. Its position is derived from props, so the first paint is already
+          in place (no slide on load). data-intent gives it the active mode's accent ring. */}
+      {index >= 0 && (
+        <span aria-hidden data-intent={value}
+          className="pointer-events-none absolute inset-y-1 left-1 rounded-full bg-surface shadow-sm ring-1 ring-(--i-line) transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+          style={{ width: `calc((100% - 0.5rem) / ${n})`, transform: `translateX(${index * 100}%)` }} />
+      )}
       {options.map((o) => (
         <button key={o.id} data-intent={o.id} aria-pressed={value === o.id} onClick={() => onChange(o.id)}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full text-sm font-medium text-ink-2 aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-sm">
+          className="relative z-10 flex h-11 items-center justify-center gap-2 rounded-full text-sm font-medium text-ink-2 transition-colors duration-200 aria-pressed:text-ink motion-reduce:transition-none">
           <i className="size-2 rounded-full bg-(--i)" />{o.label}
           {counts?.[o.id] != null && <span className="font-mono text-xs text-ink-3">{counts[o.id]}</span>}
         </button>
