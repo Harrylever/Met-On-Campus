@@ -1,5 +1,8 @@
+import { useEffect } from 'react'
 import { Link, Outlet, createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { api } from '~/lib/api'
+import { useQuery } from '@tanstack/react-query'
+import { api, unwrap } from '~/lib/api'
+import { looksLikeMatric } from '~/lib/name'
 import { useRealtime } from '~/lib/realtime'
 import { Brand, VerifiedPill } from '~/components/ui'
 import { ShellSkeleton } from '~/components/Skeleton'
@@ -19,24 +22,37 @@ const NAV = [{ to: '/discover', label: 'Discover' }, { to: '/rooms', label: 'Roo
 
 function Shell() {
   const { me } = Route.useRouteContext()
-  // Having the app open counts as "On Campus Now" until we add geofencing / a manual toggle.
+  // Having the app open counts as "online". We say so plainly until we can tell who is physically on campus.
   const router = useRouter()
   // When staff decide a department request, reload the signed-in user so their own department updates too.
   const { onCampusNow } = useRealtime({ onCampus: true, onDepartmentDecision: () => router.invalidate() })
+  // What is waiting for you (unread chats, unanswered invites). Pushes keep it fresh; it also refreshes when you return to the tab.
+  const unread = useQuery({ queryKey: ['unread'], queryFn: () => unwrap(api.me.unread.get()) })
+  const waiting = unread.data?.total ?? 0
+  useEffect(() => { document.title = waiting > 0 ? `(${waiting}) Met On Campus` : 'Met On Campus' }, [waiting])
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col lg:max-w-6xl">
       <header className="flex flex-col gap-3 px-4 pt-5 lg:flex-row lg:items-center lg:justify-between">
         <Brand />
         {/* Chips get their own row on phones: brand + two chips cannot fit one 358px line without wrapping. */}
         <div className="flex flex-wrap items-center gap-2">
-          {onCampusNow != null && <span className="pill"><i className="dot-live" />{onCampusNow} on campus</span>}
+          {onCampusNow != null && <span className="pill"><i className="dot-live" />{onCampusNow} online</span>}
           <VerifiedPill campus={me.user.university} />
         </div>
       </header>
+      {looksLikeMatric(me.user.name) && (
+        <div role="status" className="mx-4 mt-4 rounded-[12px] border border-line bg-subtle p-3 text-sm">
+          Other students currently see <b>“{me.user.name}”</b>, which can include your matric number.{' '}
+          <Link to="/profile" className="font-semibold underline underline-offset-2">Change it to your first name</Link>
+        </div>
+      )}
       <div className="flex-1 px-4 pb-24 pt-5"><Outlet /></div>
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 mx-auto flex h-16 max-w-md border-t border-line bg-surface lg:max-w-6xl">
         {NAV.map((n) => (
-          <Link key={n.to} to={n.to} className="flex flex-1 items-center justify-center text-[13px] font-medium text-ink-2" activeProps={{ className: 'font-semibold !text-ink border-t-2 border-ink -mt-px' }}>{n.label}</Link>
+          <Link key={n.to} to={n.to} className="flex flex-1 items-center justify-center text-[13px] font-medium text-ink-2" activeProps={{ className: 'font-semibold !text-ink border-t-2 border-ink -mt-px' }}>
+            {n.label}
+            {n.to === '/messages' && waiting > 0 && <span className="ml-1.5 min-w-5 rounded-full bg-ink px-1.5 text-center font-mono text-[11px] leading-5 text-white"><span className="sr-only">{waiting} waiting</span><span aria-hidden>{waiting}</span></span>}
+          </Link>
         ))}
       </nav>
     </div>

@@ -43,6 +43,13 @@
       "when": 1794933074994,
       "tag": "0005_wild_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794946186974,
+      "tag": "0006_tranquil_the_enforcers",
+      "breakpoints": true
     }
   ]
 }

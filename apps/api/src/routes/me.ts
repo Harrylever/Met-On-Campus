@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm"
 import { intentProfiles, users } from "@moc/db"
 import { authed, publicSelf } from "../auth"
 import { db } from "../context"
-import { canonical, departmentsFor, spotsFor, tidy } from "../lists"
+import { canonical, departmentsFor, spotsFor, tidy, validPersonName } from "../lists"
 
 const Intent = t.Union([
   t.Literal("study"),
@@ -34,6 +34,13 @@ export const meRoutes = new Elysia({ prefix: "/me" })
     "/",
     async ({ user, body, status }) => {
       const changes = { ...body }
+      // The display name is what every other student sees, so it must be a real name or nickname (no digits: matric
+      // numbers). Keeping the name you already have is always allowed, so an old one never blocks saving other details.
+      if (changes.name !== undefined) {
+        const name = tidy(changes.name)
+        if (name.toLowerCase() !== user.name.toLowerCase() && !validPersonName(name)) return status(422, { error: "invalid_name" })
+        changes.name = name.toLowerCase() === user.name.toLowerCase() ? user.name : name
+      }
       // A department must come from the campus list. Keeping the one you already have is always allowed, so an
       // entry staff later archive does not block you from saving the rest of your details.
       if (changes.department !== undefined && tidy(changes.department).toLowerCase() !== user.department.toLowerCase()) {

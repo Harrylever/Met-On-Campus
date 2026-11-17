@@ -22,9 +22,11 @@ export function VerifiedPill({ campus }: { campus: string }) {
   )
 }
 
-export function IntentTabs({ value, onChange, options, counts }: {
+export function IntentTabs({ value, onChange, options, counts, alerts }: {
   value: Intent; onChange: (i: Intent) => void
   options: { id: Intent; label: string }[]; counts?: Partial<Record<Intent, number>>
+  /** Things waiting on you in each mode (unread chats, unanswered invites). Shown as a filled pill. */
+  alerts?: Partial<Record<Intent, number>>
 }) {
   const n = options.length
   const index = options.findIndex((o) => o.id === value)
@@ -41,6 +43,7 @@ export function IntentTabs({ value, onChange, options, counts }: {
         <button key={o.id} data-intent={o.id} aria-pressed={value === o.id} onClick={() => onChange(o.id)}
           className="relative z-10 flex h-11 items-center justify-center gap-2 rounded-full text-sm font-medium text-ink-2 transition-colors duration-200 aria-pressed:text-ink motion-reduce:transition-none">
           <i className="size-2 rounded-full bg-(--i)" />{o.label}
+          {!!alerts?.[o.id] && <span className="min-w-5 rounded-full bg-(--i-ink) px-1.5 text-center font-mono text-[11px] leading-5 text-white"><span className="sr-only">{alerts[o.id]} waiting, </span><span aria-hidden>{alerts[o.id]}</span></span>}
           {counts?.[o.id] != null && <span className="font-mono text-xs text-ink-3">{counts[o.id]}</span>}
         </button>
       ))}

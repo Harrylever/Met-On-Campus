@@ -66,7 +66,9 @@ describe('validation against the lists', () => {
 
   test('meetups follow the campus list: archived and other-campus spots are refused, spelling is normalised', async () => {
     const a = await makeUser('Amina'), b = await makeUser('Tunde')
-    const conv = (await call(a, 'POST', '/connections', { toUserId: b.id, intent: 'study' })).json.conversationId
+    const invite = (await call(a, 'POST', '/connections', { toUserId: b.id, intent: 'study' })).json
+    const conv = invite.conversationId
+    await call(b, 'PATCH', `/connections/${invite.requestId}`, { status: 'accepted' }) // an unanswered invite allows only one message
     const propose = (where: string) => call(a, 'POST', `/conversations/${conv}/messages`, { kind: 'meetup', where, when: future() })
     expect((await propose('ict centre')).json.message.meetupWhere).toBe('ICT Centre')
     await db.update(campusSpots).set({ active: false }).where(eq(campusSpots.name, 'School Field'))

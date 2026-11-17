@@ -5,6 +5,7 @@ import { authed } from '../auth'
 import { db } from '../context'
 import * as presence from '../presence'
 import { blockedWith } from '../blocks'
+import { between } from '../requests'
 import { approvedPhotoIds } from '../photos'
 
 export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
@@ -26,13 +27,16 @@ export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
     const cards = rows
       .filter(({ u, p }) => {
         if (u.id === user.id || blocked.has(u.id)) return false
+        // Someone you said "not now" to stays out of your feed.
+        const r = between(sent, user.id, u.id)
+        if (r?.status === 'declined' && r.toUserId === user.id) return false
         if (query.department && u.department !== query.department) return false
         if (query.level && u.level !== query.level) return false
         const sameDept = user.department !== NO_DEPARTMENT && u.department === user.department
         return !(intent === 'romance' && sameDept && (p.hideFromDepartment || mine.hideFromDepartment))
       })
       .map(({ u, p }) => {
-        const rel = sent.find((r) => (r.fromUserId === user.id && r.toUserId === u.id) || (r.fromUserId === u.id && r.toUserId === user.id))
+        const rel = between(sent, user.id, u.id)
         const tagsInCommon = p.tags.filter((tag) => mine.tags.includes(tag))
         return {
           userId: u.id, name: u.name, department: u.department, level: u.level, intent,

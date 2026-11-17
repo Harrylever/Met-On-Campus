@@ -85,6 +85,13 @@ export const conversations = pgTable('conversations', {
   check('ordered_pair', sql`${t.userAId} < ${t.userBId}`),
 ])
 
+// When each person last opened a conversation. Messages from the other person after this moment are "unread".
+export const conversationReads = pgTable('conversation_reads', {
+  conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  readAt: timestamp('read_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.conversationId, t.userId] })])
+
 export const messages = pgTable('messages', {
   id: id(),
   conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),

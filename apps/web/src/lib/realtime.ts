@@ -4,7 +4,7 @@ import { api } from './api'
 
 /**
  * One native WebSocket per signed-in session (Eden Treaty typed).
- * - sends a presence frame every 30s so the server keeps us "On Campus Now" (Redis TTL is 90s)
+ * - sends a presence frame every 30s so the server keeps us "Online now" (Redis TTL is 90s)
  * - turns server pushes into query invalidations
  */
 export function useRealtime(opts: { onCampus: boolean; place?: string; onDepartmentDecision?: () => void }) {
@@ -28,8 +28,9 @@ export function useRealtime(opts: { onCampus: boolean; place?: string; onDepartm
         if (m.type === 'message.new' || m.type === 'meetup.updated') {
           qc.invalidateQueries({ queryKey: ['conversations'] })
           qc.invalidateQueries({ queryKey: ['messages', m.conversationId] })
+          qc.invalidateQueries({ queryKey: ['unread'] })
         }
-        if (m.type?.startsWith('connection.')) qc.invalidateQueries({ queryKey: ['conversations'] })
+        if (m.type?.startsWith('connection.')) { qc.invalidateQueries({ queryKey: ['conversations'] }); qc.invalidateQueries({ queryKey: ['unread'] }); qc.invalidateQueries({ queryKey: ['discover'] }) }
         if (m.type?.startsWith('room.')) qc.invalidateQueries({ queryKey: ['rooms'] })
         if (m.type === 'photo.review') qc.invalidateQueries({ queryKey: ['photos'] })
         if (m.type === 'department.request') { qc.invalidateQueries({ queryKey: ['dept-requests'] }); qc.invalidateQueries({ queryKey: ['meta'] }); decided.current?.() }

@@ -77,6 +77,10 @@ Railway runs the committed migrations before every API deploy (`preDeploy: bun r
 ## Design decisions
 - **Modes never mix.** `intent_profiles` has one row per (user, mode); conversations are unique per (intent, pair) and the inbox API requires `intent`.
 - **Romance is mutual opt-in** and honours "hide from my department" on either side (`apps/api/src/visibility.ts`).
+- **Invites are answered, not assumed.** The person invited sees Accept / Not now on the Discover card and at the top of the chat. Until they answer, the inviter can send one message. Not now closes the conversation for both, hides it from the person who declined, and keeps the inviter out of their Discover; the inviter just sees it closed. If someone invites you back, you are connected at once. In Romance, an accepted Spark is the "match" that reveals photos.
+- **Unread** is per conversation (`conversation_reads`, set when a chat is opened with the tab in view). `GET /me/unread` counts, per mode, chats with unread messages plus unanswered invites; the web app shows it on the Messages tab, each mode tab, each chat and the browser tab title. Pushes over the WebSocket keep it live.
+- **Names** are a first name or nickname, letters only (never a matric number). Onboarding asks for it; accounts created before that were named from the email address and get a one-time prompt. An existing name can always be kept, so it never blocks saving other details.
+- **"Online now"** means the app is open, not that someone is on campus, and the interface says so until geofencing or a manual toggle exists.
 - **Meetups** can only be proposed at public campus spots (`CAMPUS_SPOTS`); only the recipient can accept/decline.
 - **On Campus Now** lives only in Redis: a per-user key with `EX` (`PRESENCE_TTL_SECONDS`, default 90s) plus a ZSET index for listing. The web app sends a WS `presence` frame every 30s; stop and you expire.
 - **Auth limits** (Redis): 1 code/min and 5/hr per address, 20/hr per IP, 15 verify attempts per 15 min per address. Set `TRUST_PROXY=true` only behind a proxy that overwrites `X-Forwarded-For`.

@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { Brand, VerifiedPill } from '~/components/ui'
 import { DepartmentRequest } from '~/components/DepartmentRequest'
+import { looksLikeMatric, tidyName, validPersonName } from '~/lib/name'
 
 const NOT_LISTED = '__not_listed__'
 
@@ -37,11 +38,14 @@ function Onboarding() {
   const hasPending = !!requests.data?.requests.some((r) => r.status === 'pending')
   const department = notListed ? '' : chosenDept || departments[0] || ''
   const [level, setLevel] = useState(400)
+  // Accounts start with a name taken from the email address (it carries the matric number), so start blank instead.
+  const [name, setName] = useState(looksLikeMatric(me.user.name) ? '' : me.user.name)
+  const nameOk = validPersonName(name)
   const any = Object.values(on).some(Boolean)
 
   const save = useMutation({
     mutationFn: async () => {
-      await unwrap(api.me.patch(department ? { department, level } : { level }))
+      await unwrap(api.me.patch({ name: tidyName(name), level, ...(department ? { department } : {}) }))
       await Promise.all(INTENTS.filter((i) => on[i.id]).map((i) =>
         unwrap(api.me.profiles({ intent: i.id }).put({ enabled: true, ...(i.id === 'romance' ? { hideFromDepartment: hideDept } : {}) }))))
     },
@@ -56,6 +60,12 @@ function Onboarding() {
         <h1 className="text-[28px] font-bold leading-[34px]">What are you here for</h1>
         <p className="text-ink-2">Turn on one or more. Each has its own profile and its own inbox, and they never mix.</p>
       </div>
+      <label className="block space-y-2 text-sm font-semibold">What should we call you?
+        <input className="input mt-2 font-normal" value={name} maxLength={40} autoComplete="given-name" placeholder="Your first name or a nickname" onChange={(e) => setName(e.target.value)} aria-describedby="name-hint" />
+        <span id="name-hint" className={`block text-[13px] font-normal ${name && !nameOk ? 'text-danger' : 'text-ink-2'}`}>
+          {name && !nameOk ? 'Use letters only, with no numbers.' : 'Other students see this on your profile. Your matric number is never shown.'}
+        </span>
+      </label>
       <div className="card overflow-hidden p-0">
         {INTENTS.map((i) => (
           <div key={i.id} data-intent={i.id} className="flex items-center gap-3 border-b border-line p-4 last:border-b-0" style={{ background: on[i.id] ? 'var(--i-bg)' : undefined }}>
@@ -86,7 +96,8 @@ function Onboarding() {
       </div>
       {notListed && <DepartmentRequest open />}
       <div className="mt-auto space-y-2">
-        <button className="btn w-full" disabled={!any || !(department || hasPending) || save.isPending} onClick={() => save.mutate()}>Enter Campus</button>
+        <button className="btn w-full" disabled={!nameOk || !any || !(department || hasPending) || save.isPending} onClick={() => save.mutate()}>Enter Campus</button>
+        {save.isError && <p role="alert" className="text-center text-[13px] text-danger">Could not save. Check your name and try again.</p>}
         {!any && <p className="text-center text-[13px] text-ink-2">Turn on at least one mode to continue.</p>}
         {any && notListed && !hasPending && <p className="text-center text-[13px] text-ink-2">Send your department request above, then you can enter.</p>}
       </div>

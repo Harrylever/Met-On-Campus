@@ -7,6 +7,7 @@ import { PROMPT_SUGGESTIONS, createSuggester } from '~/lib/prompts'
 import { deptLabel } from '~/lib/dept'
 import { DepartmentRequest } from '~/components/DepartmentRequest'
 import { PhotoField } from '~/components/PhotoField'
+import { looksLikeMatric, validPersonName } from '~/lib/name'
 import { BlockedListSkeleton, LoadingRegion, ProfileFormSkeleton, Skeleton, useSkeleton } from '~/components/Skeleton'
 
 export const Route = createFileRoute('/_app/profile')({ component: Profile })
@@ -36,7 +37,10 @@ function Profile() {
 
       <section className="card space-y-3">
         <span className="label">About you (shown on every mode)</span>
-        <label className="block text-sm font-semibold">Name<input className="input mt-2 font-normal" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} /></label>
+        <label className="block text-sm font-semibold">Name<input className="input mt-2 font-normal" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} aria-describedby="profile-name-hint" />
+          <span id="profile-name-hint" className={`mt-1.5 block text-xs font-normal ${looksLikeMatric(name) ? 'text-danger' : 'text-ink-2'}`}>
+            {looksLikeMatric(name) ? 'This looks like it includes your matric number. Use your first name or a nickname.' : 'Other students see this name. Use your first name or a nickname.'}
+          </span></label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block text-sm font-semibold">Department
             <select className="input mt-2 h-11 font-normal" value={department} onChange={(e) => setDepartment(e.target.value)}>
@@ -46,7 +50,8 @@ function Profile() {
             <select className="input mt-2 h-11 font-normal" value={level} onChange={(e) => setLevel(+e.target.value)}>{[100, 200, 300, 400, 500].map((l) => <option key={l} value={l}>{l}L</option>)}</select></label>
         </div>
         <DepartmentRequest />
-        <button className="btn" disabled={saveBasics.isPending || !name.trim()} onClick={() => saveBasics.mutate()}>{saveBasics.isSuccess ? 'Saved' : 'Save'}</button>
+        <button className="btn" disabled={saveBasics.isPending || (name !== me.user.name && !validPersonName(name))} onClick={() => saveBasics.mutate()}>{saveBasics.isSuccess ? 'Saved' : 'Save'}</button>
+        {saveBasics.isError && <p role="alert" className="text-sm text-danger">Could not save. Use letters only for your name, then try again.</p>}
       </section>
 
       <IntentTabs value={mode} onChange={setMode} options={INTENTS} />

@@ -44,3 +44,6 @@ export const tidy = (s: string) => s.trim().replace(/\s+/g, " ")
 
 /** The list's own spelling of `name` (case-insensitive match), or undefined if it is not in the list. */
 export const canonical = (list: string[], name: string) => list.find((x) => x.toLowerCase() === tidy(name).toLowerCase())
+
+/** What other students see as someone's name: a first name or nickname. Letters, spaces and . ' - only, so a matric number (with digits) can never be the display name. */
+export const validPersonName = (s: string) => /^\p{L}[\p{L} .'’-]{1,39}$/u.test(s)
