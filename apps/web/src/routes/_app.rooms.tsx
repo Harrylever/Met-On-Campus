@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, type Intent } from '~/lib/api'
 import { IntentTabs, formatWhen } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
+import { LoadingRegion, RoomCardSkeleton, useSkeleton } from '~/components/Skeleton'
 
 const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 
@@ -20,6 +21,7 @@ function Rooms() {
   const withdraw = useMutation({ mutationFn: (id: string) => unwrap(api.rooms({ id }).request.delete()), onSuccess: refresh })
 
   const [creating, setCreating] = useState(false)
+  const showSkeleton = useSkeleton(list.isLoading)
   const rooms = list.data?.rooms ?? []
   const live = rooms.filter((r) => r.live)
   const groups = [['Happening now', live], ['Coming up', rooms.filter((r) => !r.live)]] as const
@@ -34,6 +36,7 @@ function Rooms() {
       <button className={creating ? 'btn btn-ghost' : 'btn btn-i'} onClick={() => setCreating(!creating)}>{creating ? 'Cancel' : kind === 'study' ? 'Host a Study Room' : 'Host a Hangout'}</button>
       {creating && <CreateRoom intent={kind} onDone={() => { setCreating(false); refresh() }} />}
       {list.isError && <p role="alert" className="card text-danger">Could not load rooms.</p>}
+      {showSkeleton && <LoadingRegion label="Loading rooms" className="grid gap-3 lg:grid-cols-2">{[0, 1, 2].map((i) => <RoomCardSkeleton key={i} />)}</LoadingRegion>}
       {groups.map(([title, items]) => items.length > 0 && (
         <section key={title} className="space-y-3">
           <h2 className="text-xl font-semibold">{title}</h2>

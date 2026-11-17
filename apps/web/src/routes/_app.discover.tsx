@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
+import { LoadingRegion, Skeleton, StudentCardSkeleton, useSkeleton } from '~/components/Skeleton'
 import { SafetyMenu } from '~/components/safety'
 
 export const Route = createFileRoute('/_app/discover')({ component: Discover })
@@ -33,6 +34,7 @@ function Discover() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['discover'] }),
   })
   const cards = feed.data?.cards ?? []
+  const showSkeleton = useSkeleton(feed.isLoading)
   const depts = [...new Set(cards.map((x) => x.department))]
 
   return (
@@ -43,7 +45,7 @@ function Discover() {
           <span className="label text-(--i-ink)">{intent} mode</span>
           <h1 className="text-[28px] font-bold leading-[34px]">{c.title}</h1>
           <p>{c.desc}</p>
-          <p className="label flex items-center gap-1.5 pt-2 text-ink"><i className="dot-live" />{feed.data?.onCampusNow ?? 0} on campus now</p>
+          <p className="label flex items-center gap-1.5 pt-2 text-ink"><i className="dot-live" />{feed.isLoading ? <Skeleton className="h-3.5 w-24" /> : `${feed.data?.onCampusNow ?? 0} on campus now`}</p>
         </section>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="Department">
           <button className="chip" aria-pressed={!dept} onClick={() => setDept('')}>All departments</button>
@@ -56,9 +58,10 @@ function Discover() {
       </aside>
 
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between"><span className="label text-ink">{cards.length} {cards.length === 1 ? 'student' : 'students'}</span><span className="label">On campus first</span></div>
+        <div className="flex items-center justify-between"><span className="label text-ink">{feed.isLoading ? <Skeleton className="h-3.5 w-20" /> : <>{cards.length} {cards.length === 1 ? 'student' : 'students'}</>}</span><span className="label">On campus first</span></div>
         {feed.isError && <p role="alert" className="card text-danger">Could not load students. Try again in a moment.</p>}
         {!feed.isLoading && cards.length === 0 && <div className="card space-y-2"><h2 className="text-[17px] font-semibold">No students match these filters</h2><p className="text-ink-2">Try another department or level, or clear both.</p><button className="btn btn-ghost" onClick={() => { setDept(''); setLevel('') }}>Clear Filters</button></div>}
+        {showSkeleton && <LoadingRegion label="Loading students" className="grid gap-4 xl:grid-cols-2">{[0, 1, 2].map((i) => <StudentCardSkeleton key={i} />)}</LoadingRegion>}
         <div className="grid gap-4 xl:grid-cols-2">
         {cards.map((s) => {
           const isOpen = open === s.userId

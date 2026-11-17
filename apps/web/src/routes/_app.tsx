@@ -2,6 +2,7 @@ import { Link, Outlet, createFileRoute, redirect, useRouter } from '@tanstack/re
 import { api } from '~/lib/api'
 import { useRealtime } from '~/lib/realtime'
 import { Brand, VerifiedPill } from '~/components/ui'
+import { ShellSkeleton } from '~/components/Skeleton'
 
 export const Route = createFileRoute('/_app')({ ssr: false,
   beforeLoad: async () => {
@@ -10,6 +11,7 @@ export const Route = createFileRoute('/_app')({ ssr: false,
     if (!data.onboarded) throw redirect({ to: '/onboarding' })
     return { me: data }
   },
+  pendingComponent: ShellSkeleton, // shown while the account check runs, on first open and on slow connections
   component: Shell,
 })
 

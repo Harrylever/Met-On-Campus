@@ -6,6 +6,7 @@ import { IntentTabs } from '~/components/ui'
 import { PROMPT_SUGGESTIONS, createSuggester } from '~/lib/prompts'
 import { deptLabel } from '~/lib/dept'
 import { DepartmentRequest } from '~/components/DepartmentRequest'
+import { BlockedListSkeleton, LoadingRegion, ProfileFormSkeleton, Skeleton, useSkeleton } from '~/components/Skeleton'
 
 export const Route = createFileRoute('/_app/profile')({ component: Profile })
 
@@ -20,6 +21,7 @@ function Profile() {
   const [mode, setMode] = useState<Intent>('study')
   const current = me.profiles.find((p) => p.intent === mode)
   const meta = useQuery({ queryKey: ['meta'], queryFn: () => unwrap(api.meta.get()), staleTime: 60_000 })
+  const showSkeleton = useSkeleton(meta.isLoading)
 
   const logout = useMutation({ mutationFn: () => unwrap(api.auth.logout.post()), onSuccess: () => nav({ to: '/login' }) })
   const [name, setName] = useState(me.user.name)
@@ -50,7 +52,8 @@ function Profile() {
       {/* key resets the form when switching modes so one mode's edits never bleed into another */}
       {meta.data
         ? <ModeForm key={mode} mode={mode} profile={current} meta={meta.data} onSaved={() => router.invalidate()} />
-        : <p className="card text-sm text-ink-2" role="status">{meta.isError ? 'Could not load your profile options. Refresh to try again.' : 'Loading…'}</p>}
+        : meta.isError ? <p className="card text-sm text-ink-2" role="alert">Could not load your profile options. Refresh to try again.</p>
+        : showSkeleton ? <LoadingRegion label="Loading your profile"><ProfileFormSkeleton /></LoadingRegion> : null}
 
       <BlockedList />
 
@@ -158,7 +161,7 @@ function BlockedList() {
   return (
     <section className="card space-y-3">
       <span className="label">Blocked students</span>
-      {blocked.length === 0 ? <p className="text-sm text-ink-2">You have not blocked anyone.</p> : (
+      {list.isLoading ? <LoadingRegion label="Loading blocked students"><BlockedListSkeleton /></LoadingRegion> : blocked.length === 0 ? <p className="text-sm text-ink-2">You have not blocked anyone.</p> : (
         <ul className="space-y-2">
           {blocked.map((b) => (
             <li key={b.id} className="flex items-center gap-3">

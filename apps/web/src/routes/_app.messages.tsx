@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs, formatWhen } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
+import { BubblesSkeleton, ConversationChipsSkeleton, ConversationSkeleton, LoadingRegion, useSkeleton } from '~/components/Skeleton'
 import { SafetyMenu } from '~/components/safety'
 
 export const Route = createFileRoute('/_app/messages')({ component: Messages })
@@ -27,6 +28,7 @@ function Messages() {
   const convos = useQuery({ queryKey: ['conversations', intent], queryFn: () => unwrap(api.conversations.get({ query: { intent } })) })
   const spots = useQuery({ queryKey: ['spots'], queryFn: () => unwrap(api.spots.get()), staleTime: Infinity })
   const list = convos.data?.conversations ?? []
+  const showSkeleton = useSkeleton(convos.isLoading)
   const current = list.find((c) => c.id === active[intent]) ?? list[0]
   const msgs = useQuery({
     queryKey: ['messages', current?.id], enabled: !!current,
@@ -47,9 +49,11 @@ function Messages() {
       <p className="rounded-[10px] bg-(--i-bg) p-3 text-[13px] text-ink">{NOTE[intent]}</p>
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
+        {showSkeleton && <LoadingRegion label="Loading conversations"><ConversationChipsSkeleton /></LoadingRegion>}
         {list.map((c) => <button key={c.id} className="chip" aria-pressed={current?.id === c.id} onClick={() => setActive({ ...active, [intent]: c.id })}>{c.with.name}</button>)}
       </div>
-      {!current && <p className="card text-ink-2">No {intent} conversations yet. Reach out from Discover.</p>}
+      {showSkeleton && <ConversationSkeleton />}
+      {!current && !convos.isLoading && <p className="card text-ink-2">No {intent} conversations yet. Reach out from Discover.</p>}
 
       {current && (
         <section className="card flex flex-col gap-3">
@@ -57,6 +61,7 @@ function Messages() {
             <h2 className="text-[17px] font-semibold">{current.with.name} • {current.with.level}L {deptLabel(current.with.department)}</h2>
             <SafetyMenu userId={current.with.id} name={current.with.name} intent={intent} label="Block or report" />
           </div>
+          {msgs.isLoading && <LoadingRegion label="Loading messages"><BubblesSkeleton /></LoadingRegion>}
           <ol className="flex flex-col gap-2">
             {msgs.data?.messages.map((m) => {
               const mine = m.senderId === me.user.id
