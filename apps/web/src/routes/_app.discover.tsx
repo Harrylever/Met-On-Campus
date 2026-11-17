@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
+import { photoUrl } from '~/components/Avatar'
 import { LoadingRegion, Skeleton, StudentCardSkeleton, useSkeleton } from '~/components/Skeleton'
 import { SafetyMenu } from '~/components/safety'
 
@@ -67,8 +68,8 @@ function Discover() {
           const isOpen = open === s.userId
           return (
             <article key={s.userId} className="card flex flex-col gap-3 p-0 overflow-hidden">
-              <div className="relative flex h-40 flex-col items-center justify-center bg-(--i-bg) font-display text-[96px] font-bold leading-none text-(--i-ink)" aria-hidden>
-                {s.name[0]}
+              <div className={`relative flex ${s.photoId ? 'h-72' : 'h-40'} flex-col items-center justify-center bg-(--i-bg) font-display text-[96px] font-bold leading-none text-(--i-ink)`} aria-hidden>
+                {s.photoId ? <img src={photoUrl(s.photoId)} alt="" className="absolute inset-0 size-full object-cover object-[50%_25%]" onError={(e) => { e.currentTarget.style.display = 'none' }} /> : s.name[0]}
                 {s.onCampusNow && <span className="pill absolute right-3 top-3"><i className="dot-live" />On Campus Now</span>}
               </div>
               <div className="flex flex-col gap-3 p-4 pt-1">

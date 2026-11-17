@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs, formatWhen } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
+import { Avatar } from '~/components/Avatar'
 import { BubblesSkeleton, ConversationChipsSkeleton, ConversationSkeleton, LoadingRegion, useSkeleton } from '~/components/Skeleton'
 import { SafetyMenu } from '~/components/safety'
 
@@ -58,7 +59,7 @@ function Messages() {
       {current && (
         <section className="card flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-[17px] font-semibold">{current.with.name} • {current.with.level}L {deptLabel(current.with.department)}</h2>
+            <div className="flex items-center gap-3"><Avatar name={current.with.name} photoId={current.photoId} /><h2 className="text-[17px] font-semibold">{current.with.name} • {current.with.level}L {deptLabel(current.with.department)}</h2></div>
             <SafetyMenu userId={current.with.id} name={current.with.name} intent={intent} label="Block or report" />
           </div>
           {msgs.isLoading && <LoadingRegion label="Loading messages"><BubblesSkeleton /></LoadingRegion>}

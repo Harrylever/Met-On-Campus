@@ -6,7 +6,8 @@ import { assertEmailConfigured } from './email'
 
 assertEmailConfigured()
 
-app.listen(env.port)
+// Photos are the largest body we accept (6 MB plus form overhead); everything else is tiny.
+app.listen({ port: env.port, maxRequestBodySize: 8 * 1024 * 1024 })
 bus.attach((topic, payload) => app.server?.publish(topic, JSON.stringify(payload)))
 
 // Expire stale presence and tell campuses when the count changes without a heartbeat.

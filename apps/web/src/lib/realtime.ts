@@ -31,6 +31,7 @@ export function useRealtime(opts: { onCampus: boolean; place?: string; onDepartm
         }
         if (m.type?.startsWith('connection.')) qc.invalidateQueries({ queryKey: ['conversations'] })
         if (m.type?.startsWith('room.')) qc.invalidateQueries({ queryKey: ['rooms'] })
+        if (m.type === 'photo.review') qc.invalidateQueries({ queryKey: ['photos'] })
         if (m.type === 'department.request') { qc.invalidateQueries({ queryKey: ['dept-requests'] }); qc.invalidateQueries({ queryKey: ['meta'] }); decided.current?.() }
         if (m.type === 'presence.count') qc.invalidateQueries({ queryKey: ['discover'] })
       })

@@ -28,5 +28,17 @@ export const env = {
   // 32 random bytes, base64. Encrypts TOTP secrets at rest.
   adminEncryptionKey: process.env.ADMIN_ENCRYPTION_KEY ?? "",
   platformUrl: process.env.PLATFORM_URL ?? "https://platform.metoncampus.xyz",
+  // Photo storage. Any S3-compatible bucket (Railway, Cloudflare R2, GCS interop). With none set, files go to a local
+  // folder in dev and tests; in production photo uploads stay switched off until a bucket is configured.
+  s3: {
+    endpoint: process.env.S3_ENDPOINT ?? "",
+    bucket: process.env.S3_BUCKET ?? "",
+    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
+    region: process.env.S3_REGION ?? "auto",
+    // Railway buckets use virtual-hosted addressing (bucket in the hostname); path-style is the S3 default elsewhere.
+    virtualHosted: process.env.S3_VIRTUAL_HOSTED === "true",
+  },
+  uploadDir: process.env.UPLOAD_DIR ?? "uploads",
   isProd: process.env.NODE_ENV === "production",
 }

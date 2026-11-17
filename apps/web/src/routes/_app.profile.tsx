@@ -6,6 +6,7 @@ import { IntentTabs } from '~/components/ui'
 import { PROMPT_SUGGESTIONS, createSuggester } from '~/lib/prompts'
 import { deptLabel } from '~/lib/dept'
 import { DepartmentRequest } from '~/components/DepartmentRequest'
+import { PhotoField } from '~/components/PhotoField'
 import { BlockedListSkeleton, LoadingRegion, ProfileFormSkeleton, Skeleton, useSkeleton } from '~/components/Skeleton'
 
 export const Route = createFileRoute('/_app/profile')({ component: Profile })
@@ -51,7 +52,7 @@ function Profile() {
       <IntentTabs value={mode} onChange={setMode} options={INTENTS} />
       {/* key resets the form when switching modes so one mode's edits never bleed into another */}
       {meta.data
-        ? <ModeForm key={mode} mode={mode} profile={current} meta={meta.data} onSaved={() => router.invalidate()} />
+        ? <ModeForm key={mode} mode={mode} profile={current} meta={meta.data} name={me.user.name} onSaved={() => router.invalidate()} />
         : meta.isError ? <p className="card text-sm text-ink-2" role="alert">Could not load your profile options. Refresh to try again.</p>
         : showSkeleton ? <LoadingRegion label="Loading your profile"><ProfileFormSkeleton /></LoadingRegion> : null}
 
@@ -63,7 +64,7 @@ function Profile() {
 }
 
 type P = NonNullable<ReturnType<typeof Route.useRouteContext>['me']['profiles'][number]>
-function ModeForm({ mode, profile, meta, onSaved }: { mode: Intent; profile?: P; meta: Meta; onSaved: () => void }) {
+function ModeForm({ mode, profile, meta, name, onSaved }: { mode: Intent; profile?: P; meta: Meta; name: string; onSaved: () => void }) {
   const [enabled, setEnabled] = useState(profile?.enabled ?? false)
   const [prompt, setPrompt] = useState(profile?.prompt ?? '')
   // Prompt suggestions: one shuffled pass per mode. `undo` holds what the person had typed if a suggestion replaced it.
@@ -107,6 +108,7 @@ function ModeForm({ mode, profile, meta, onSaved }: { mode: Intent; profile?: P;
         <span>{mode[0]!.toUpperCase() + mode.slice(1)} Mode is {enabled ? 'on' : 'off'}</span>
         <input type="checkbox" role="switch" className="size-6" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
       </label>
+      <PhotoField mode={mode} modeOn={profile?.enabled ?? false} name={name} />
       <div>
         <label htmlFor={promptId} className={field}>Prompt</label>
         {/* The button sits inside the input's right edge. It fills the field with a ready-made prompt (see lib/prompts.ts). */}

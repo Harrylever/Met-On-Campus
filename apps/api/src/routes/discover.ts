@@ -5,6 +5,7 @@ import { authed } from '../auth'
 import { db } from '../context'
 import * as presence from '../presence'
 import { blockedWith } from '../blocks'
+import { approvedPhotoIds } from '../photos'
 
 export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
   .get('/', async ({ user, query, status }) => {
@@ -20,6 +21,7 @@ export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
       .where(and(eq(connectionRequests.intent, intent), or(eq(connectionRequests.fromUserId, user.id), eq(connectionRequests.toUserId, user.id))))
     const blocked = await blockedWith(user.id)
     const hereNow = new Set(await presence.here(user.university))
+    const photos = await approvedPhotoIds(rows.map(({ u }) => u.id), intent)
 
     const cards = rows
       .filter(({ u, p }) => {
@@ -36,6 +38,8 @@ export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
           userId: u.id, name: u.name, department: u.department, level: u.level, intent,
           prompt: p.prompt, bio: p.bio, tags: p.tags, usuallyFree: p.usuallyFree, usualSpot: p.usualSpot,
           inCommon: tagsInCommon, onCampusNow: hereNow.has(u.id),
+          // Romance photos stay hidden until the Spark between you was accepted.
+          photoId: (intent !== 'romance' || rel?.status === 'accepted') ? (photos.get(u.id) ?? null) : null,
           request: rel ? { id: rel.id, status: rel.status, direction: rel.fromUserId === user.id ? 'sent' : 'received' } : null,
         }
       })

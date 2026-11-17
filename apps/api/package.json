@@ -13,11 +13,12 @@
     "admin": "bun src/admin/cli.ts"
   },
   "dependencies": {
-    "@moc/db": "workspace:*",
     "@elysiajs/cors": "^1.4.3",
+    "@moc/db": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "elysia": "^1.4.32",
-    "ioredis": "^6.0.0"
+    "ioredis": "^6.0.0",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

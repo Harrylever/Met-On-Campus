@@ -41,3 +41,14 @@ export async function adminData<T = any>(path: string): Promise<T> {
   if (!r.ok) throw new Error(`API ${path} returned ${r.status}`)
   return r.data
 }
+
+/** A photo's bytes for the review screen. Server-only, so the service token and staff session never reach a browser. */
+export async function adminImage(id: string): Promise<Response> {
+  const session = await requireSession()
+  const res = await fetch(`${BASE}/admin/photos/${id}/image`, {
+    headers: { authorization: `Bearer ${TOKEN}`, 'x-client-ip': await clientIp(), 'x-admin-session': session },
+    cache: 'no-store', signal: AbortSignal.timeout(15_000),
+  })
+  if (!res.ok) return new Response('Not found', { status: res.status === 401 ? 401 : 404 })
+  return new Response(res.body, { headers: { 'content-type': 'image/webp', 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' } })
+}

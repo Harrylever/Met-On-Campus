@@ -13,6 +13,9 @@ export const reportStatusEnum = pgEnum('report_status', ['open', 'reviewed', 'di
 export const userStatusEnum = pgEnum('user_status', ['active', 'suspended'])
 export const moderationActionEnum = pgEnum('moderation_action', ['dismiss', 'warn', 'suspend', 'unsuspend'])
 export const departmentRequestStatusEnum = pgEnum('department_request_status', ['pending', 'approved', 'declined', 'withdrawn'])
+// pending = waiting for staff; approved = shown to others; rejected = staff said no (the student sees the reason);
+// replaced = a newer upload took its place; removed = the student or staff took it down.
+export const photoStatusEnum = pgEnum('photo_status', ['pending', 'approved', 'rejected', 'replaced', 'removed'])
 export const memberStatusEnum = pgEnum('member_status', ['pending', 'approved', 'declined'])
 
 const id = () => uuid('id').primaryKey().defaultRandom()
@@ -176,6 +179,25 @@ export const departmentRequests = pgTable('department_requests', {
 }, (t) => [
   uniqueIndex('department_requests_one_pending').on(t.userId).where(sql`${t.status} = 'pending'`), // one open request per student
   index('department_requests_campus_idx').on(t.university, t.status),
+])
+
+// One photo per student per mode, never shared across modes. A photo is private until staff approve it; a student can
+// have an approved photo showing while a replacement waits for review. The image itself lives in object storage
+// (`storageKey`); the file is deleted when the row stops being pending/approved.
+export const profilePhotos = pgTable('profile_photos', {
+  id: id(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  intent: intentEnum('intent').notNull(),
+  storageKey: text('storage_key').notNull(),
+  status: photoStatusEnum('status').notNull().default('pending'),
+  note: text('note'), // staff's reason, shown to the student when rejected
+  reviewedBy: uuid('reviewed_by'), // admin_users.id (no FK so deleting an admin keeps the history)
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [
+  uniqueIndex('profile_photos_one_pending').on(t.userId, t.intent).where(sql`${t.status} = 'pending'`),
+  uniqueIndex('profile_photos_one_approved').on(t.userId, t.intent).where(sql`${t.status} = 'approved'`),
+  index('profile_photos_queue_idx').on(t.status, t.createdAt),
 ])
 
 // ---- Platform (staff) ----------------------------------------------------------------------------

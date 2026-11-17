@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { and, eq, sql } from 'drizzle-orm'
-import { adminSessions, adminUsers, departmentRequests, reports } from '@moc/db'
+import { adminSessions, adminUsers, departmentRequests, profilePhotos, reports } from '@moc/db'
 import { db, redis } from '../context'
 import { hit } from '../ratelimit'
 import { decrypt, encrypt, hashBackupCode, newBackupCodes, randomToken, sha256 } from './crypto'
@@ -148,7 +148,8 @@ export const adminSessionRoutes = new Elysia({ prefix: '/admin' }).use(adminAuth
     const [open] = await db.select({ n: sql<number>`count(*)::int` }).from(reports).where(eq(reports.status, 'open'))
     // Distinct (campus, name) pairs: five students asking for the same department is one decision.
     const [reqs] = await db.select({ n: sql<number>`count(distinct (${departmentRequests.university}, lower(${departmentRequests.name})))::int` }).from(departmentRequests).where(eq(departmentRequests.status, 'pending'))
-    return { email: admin.email, lastLoginAt: admin.lastLoginAt, backupCodesLeft: admin.backupCodeHashes.length, openReports: open?.n ?? 0, departmentRequests: reqs?.n ?? 0 }
+    const [photos] = await db.select({ n: sql<number>`count(*)::int` }).from(profilePhotos).where(eq(profilePhotos.status, 'pending'))
+    return { email: admin.email, lastLoginAt: admin.lastLoginAt, backupCodesLeft: admin.backupCodeHashes.length, openReports: open?.n ?? 0, departmentRequests: reqs?.n ?? 0, photos: photos?.n ?? 0 }
   })
   .post('/auth/logout', async ({ admin, sessionHash, ip }) => {
     await db.delete(adminSessions).where(eq(adminSessions.tokenHash, sessionHash))

@@ -3,6 +3,7 @@ import {
   github,
   postgres,
   preserve,
+  bucket,
   project,
   redis,
   service,
@@ -30,6 +31,8 @@ export default defineRailway(() => {
     region: "asia-southeast1-eqsg3a",
     sizeMB: 5000,
   })
+  // Student photos (private; served only through the API). Declared here so `railway config apply` keeps it.
+  const photos = bucket("ergonomic-drawer", { region: "iad" })
   const _mocapi = service("@moc/api", {
     source: github("Harrylever/Met-On-Campus", {
       branch: "main",
@@ -66,11 +69,18 @@ export default defineRailway(() => {
       DATABASE_URL: preserve(),
       REDIS_URL: preserve(),
       RESEND_API_KEY: preserve(),
+      // Photo storage (the project's Railway bucket). Values live only in Railway; without them uploads stay switched off.
+      S3_ENDPOINT: preserve(),
+      S3_BUCKET: preserve(),
+      S3_ACCESS_KEY_ID: preserve(),
+      S3_SECRET_ACCESS_KEY: preserve(),
+      S3_REGION: preserve(),
+      S3_VIRTUAL_HOSTED: preserve(),
     },
   })
 
   return project("ravishing-freedom", {
     variables: { managed: true },
-    resources: [Postgres, Redis, _mocapi, redisVolume, postgresVolume],
+    resources: [Postgres, Redis, _mocapi, redisVolume, postgresVolume, photos],
   })
 })

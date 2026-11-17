@@ -6,6 +6,7 @@ import { bus, db, topics } from '../context'
 import { canonical, spotsFor } from '../lists'
 import { canInteract, orderedPair } from '../visibility'
 import { blockedWith, isBlockedBetween } from '../blocks'
+import { approvedPhotoIds, romanceMatched } from '../photos'
 
 const Intent = t.Union([t.Literal('study'), t.Literal('friends'), t.Literal('romance')])
 
@@ -45,11 +46,14 @@ export const connectionRoutes = new Elysia().use(authed)
     const blocked = await blockedWith(user.id)
     const rows = (await db.select().from(conversations)
       .where(and(eq(conversations.intent, query.intent), or(eq(conversations.userAId, user.id), eq(conversations.userBId, user.id))))).filter((c) => !blocked.has(c.userAId === user.id ? c.userBId : c.userAId))
+    const photos = await approvedPhotoIds(rows.map((c) => (c.userAId === user.id ? c.userBId : c.userAId)), query.intent)
     const out = await Promise.all(rows.map(async (c) => {
       const otherId = c.userAId === user.id ? c.userBId : c.userAId
       const [other] = await db.select().from(users).where(eq(users.id, otherId)).limit(1)
       const [last] = await db.select().from(messages).where(eq(messages.conversationId, c.id)).orderBy(desc(messages.createdAt)).limit(1)
-      return { id: c.id, intent: c.intent, with: publicSelf(other!), last: last ?? null }
+      // In Romance a conversation exists as soon as a Spark is sent, so the photo waits for the match (Spark accepted).
+      const photoId = query.intent !== 'romance' || (await romanceMatched(user.id, otherId)) ? (photos.get(otherId) ?? null) : null
+      return { id: c.id, intent: c.intent, with: publicSelf(other!), photoId, last: last ?? null }
     }))
     return { conversations: out.sort((x, y) => +(y.last?.createdAt ?? 0) - +(x.last?.createdAt ?? 0)) }
   }, { query: t.Object({ intent: Intent }) })
