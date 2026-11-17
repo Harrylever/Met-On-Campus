@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { and, desc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm'
-import { connectionRequests, conversationReads, conversations, messages, users } from '@moc/db'
+import { connectionRequests, conversationReads, conversations, messages, roomMembers, rooms, users } from '@moc/db'
 import { authed, publicSelf } from '../auth'
 import { bus, db, topics } from '../context'
 import { canonical, spotsFor } from '../lists'
@@ -96,7 +96,13 @@ export const connectionRoutes = new Elysia().use(authed)
       if (invited) requests++
       if (invited || x.unread > 0) byIntent[x.c.intent]++
     }
-    return { byIntent, total: byIntent.study + byIntent.friends + byIntent.romance, requests }
+    // Rooms: people waiting for my answer as a host, plus answers and cancellations I have not looked at as a member.
+    const now = new Date()
+    const [waiting] = await db.select({ n: sql<number>`count(*)::int` }).from(roomMembers).innerJoin(rooms, eq(rooms.id, roomMembers.roomId))
+      .where(and(eq(rooms.hostId, user.id), eq(roomMembers.status, 'pending'), isNull(rooms.cancelledAt), gt(rooms.endsAt, now)))
+    const [news] = await db.select({ n: sql<number>`count(*)::int` }).from(roomMembers).innerJoin(rooms, eq(rooms.id, roomMembers.roomId))
+      .where(and(eq(roomMembers.userId, user.id), ne(rooms.hostId, user.id), gt(rooms.endsAt, now), isNull(roomMembers.decisionSeenAt), or(ne(roomMembers.status, 'pending'), sql`${rooms.cancelledAt} is not null`)))
+    return { byIntent, total: byIntent.study + byIntent.friends + byIntent.romance, requests, rooms: (waiting?.n ?? 0) + (news?.n ?? 0) }
   })
 
   .get('/conversations/:id/messages', async ({ user, params, status }) => {

@@ -116,6 +116,7 @@ export const rooms = pgTable('rooms', {
   startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
   endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
   capacity: integer('capacity').notNull(),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true }), // set when the host cancels; the row stays so members can be told
   createdAt: createdAt(),
 }, (t) => [index('rooms_campus_idx').on(t.university, t.intent, t.startsAt), check('capacity_positive', sql`${t.capacity} > 0`)])
 
@@ -123,6 +124,8 @@ export const roomMembers = pgTable('room_members', {
   roomId: uuid('room_id').notNull().references(() => rooms.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   status: memberStatusEnum('status').notNull().default('pending'),
+  // When the member last saw the outcome (approved, declined, cancelled). Null means there is news they have not seen.
+  decisionSeenAt: timestamp('decision_seen_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [primaryKey({ columns: [t.roomId, t.userId] })])
 

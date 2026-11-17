@@ -1,5 +1,5 @@
-import { useId, useState } from 'react'
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
+import { useEffect, useId, useState } from 'react'
+import { createFileRoute, useBlocker, useNavigate, useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs } from '~/components/ui'
@@ -21,7 +21,9 @@ function Profile() {
   const router = useRouter()
   const nav = useNavigate()
   const [mode, setMode] = useState<Intent>('study')
-  const current = me.profiles.find((p) => p.intent === mode)
+  const profileFor = (i: Intent) => me.profiles.find((p) => p.intent === i)
+  // Which modes have edits that are not saved yet. Every mode's form stays mounted, so switching tabs never loses typing.
+  const [dirty, setDirty] = useState<Record<string, boolean>>({})
   const meta = useQuery({ queryKey: ['meta'], queryFn: () => unwrap(api.meta.get()), staleTime: 60_000 })
   const showSkeleton = useSkeleton(meta.isLoading)
 
@@ -29,6 +31,10 @@ function Profile() {
   const [name, setName] = useState(me.user.name)
   const [department, setDepartment] = useState(me.user.department)
   const [level, setLevel] = useState(me.user.level)
+  const basicsDirty = name !== me.user.name || department !== me.user.department || level !== me.user.level
+  const anyDirty = basicsDirty || Object.values(dirty).some(Boolean)
+  // Leaving with unsaved edits asks first (in-app navigation and closing the tab).
+  useBlocker({ shouldBlockFn: () => !window.confirm('You have unsaved changes. Leave without saving?'), enableBeforeUnload: () => anyDirty, disabled: !anyDirty })
   const saveBasics = useMutation({ mutationFn: () => unwrap(api.me.patch({ name, department, level })), onSuccess: () => router.invalidate() })
 
   return (
@@ -50,14 +56,19 @@ function Profile() {
             <select className="input mt-2 h-11 font-normal" value={level} onChange={(e) => setLevel(+e.target.value)}>{[100, 200, 300, 400, 500].map((l) => <option key={l} value={l}>{l}L</option>)}</select></label>
         </div>
         <DepartmentRequest />
-        <button className="btn" disabled={saveBasics.isPending || (name !== me.user.name && !validPersonName(name))} onClick={() => saveBasics.mutate()}>{saveBasics.isSuccess ? 'Saved' : 'Save'}</button>
+        <button className="btn" disabled={saveBasics.isPending || (name !== me.user.name && !validPersonName(name))} onClick={() => saveBasics.mutate()}>{saveBasics.isSuccess && !basicsDirty ? 'Saved' : 'Save details'}</button>
+        {basicsDirty && <p className="text-sm text-ink-2" role="status">You have unsaved changes to your details.</p>}
         {saveBasics.isError && <p role="alert" className="text-sm text-danger">Could not save. Use letters only for your name, then try again.</p>}
       </section>
 
-      <IntentTabs value={mode} onChange={setMode} options={INTENTS} />
-      {/* key resets the form when switching modes so one mode's edits never bleed into another */}
+      <IntentTabs value={mode} onChange={setMode} options={INTENTS} marks={dirty} />
+      {/* One form per mode, all kept mounted (the others hidden): each keeps its own edits, so switching tabs loses nothing and one mode's edits never bleed into another. */}
       {meta.data
-        ? <ModeForm key={mode} mode={mode} profile={current} meta={meta.data} name={me.user.name} onSaved={() => router.invalidate()} />
+        ? INTENTS.map((i) => (
+          <div key={i.id} hidden={mode !== i.id}>
+            <ModeForm mode={i.id} profile={profileFor(i.id)} meta={meta.data} name={me.user.name} onSaved={() => router.invalidate()} onDirty={(d) => setDirty((x) => (x[i.id] === d ? x : { ...x, [i.id]: d }))} />
+          </div>
+        ))
         : meta.isError ? <p className="card text-sm text-ink-2" role="alert">Could not load your profile options. Refresh to try again.</p>
         : showSkeleton ? <LoadingRegion label="Loading your profile"><ProfileFormSkeleton /></LoadingRegion> : null}
 
@@ -69,7 +80,7 @@ function Profile() {
 }
 
 type P = NonNullable<ReturnType<typeof Route.useRouteContext>['me']['profiles'][number]>
-function ModeForm({ mode, profile, meta, name, onSaved }: { mode: Intent; profile?: P; meta: Meta; name: string; onSaved: () => void }) {
+function ModeForm({ mode, profile, meta, name, onSaved, onDirty }: { mode: Intent; profile?: P; meta: Meta; name: string; onSaved: () => void; onDirty: (dirty: boolean) => void }) {
   const [enabled, setEnabled] = useState(profile?.enabled ?? false)
   const [prompt, setPrompt] = useState(profile?.prompt ?? '')
   // Prompt suggestions: one shuffled pass per mode. `undo` holds what the person had typed if a suggestion replaced it.
@@ -98,13 +109,19 @@ function ModeForm({ mode, profile, meta, name, onSaved }: { mode: Intent; profil
   const spotOptions = [...new Set([profile?.usualSpot ?? '', ...meta.spots])].filter(Boolean)
   const qc = useQueryClient()
 
+  // What is on screen now vs what was last saved, to know when there is something to lose.
+  const snapshot = JSON.stringify([enabled, prompt, bio, tags, usuallyFree, usualSpot, mode === 'romance' ? hide : null])
+  const [savedAs, setSavedAs] = useState(snapshot)
+  const isDirty = snapshot !== savedAs
+  useEffect(() => { onDirty(isDirty) }, [isDirty]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const save = useMutation({
     mutationFn: () => unwrap(api.me.profiles({ intent: mode }).put({
       enabled, prompt, bio, usuallyFree, usualSpot,
       tags: tags.split(",").map((t: string) => t.trim()).filter(Boolean).slice(0, 6),
       ...(mode === 'romance' ? { hideFromDepartment: hide } : {}),
     })),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['discover'] }); onSaved() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['discover'] }); setSavedAs(snapshot); onSaved() },
   })
   const field = 'block text-sm font-semibold'
   return (
@@ -155,7 +172,8 @@ function ModeForm({ mode, profile, meta, name, onSaved }: { mode: Intent; profil
         <label className="flex items-center gap-3 text-sm"><input type="checkbox" className="size-5" checked={hide} onChange={(e) => setHide(e.target.checked)} />Hide my Romance profile from students in my department</label>
       )}
       {save.isError && <p role="alert" className="text-sm text-danger">Could not save. Check the fields and try again.</p>}
-      <button className="btn btn-i w-full" disabled={save.isPending || usuallyFree.length > MAX_FREE} onClick={() => save.mutate()}>{save.isSuccess ? 'Saved' : 'Save profile'}</button>
+      {isDirty && <p className="text-sm text-ink-2" role="status">You have unsaved changes to your {mode} profile.</p>}
+      <button className="btn btn-i w-full" disabled={save.isPending || usuallyFree.length > MAX_FREE} onClick={() => save.mutate()}>{save.isSuccess && !isDirty ? 'Saved' : `Save ${mode} profile`}</button>
     </section>
   )
 }

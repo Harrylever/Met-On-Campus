@@ -88,6 +88,8 @@ Railway runs the committed migrations before every API deploy (`preDeploy: bun r
 - **Auth limits** (Redis): 1 code/min and 5/hr per address, 20/hr per IP, 15 verify attempts per 15 min per address. Set `TRUST_PROXY=true` only behind a proxy that overwrites `X-Forwarded-For`.
 - **Blocking** hides two students from each other everywhere (Discover, rooms, new connections) and freezes any existing chat: hidden, unreadable, unwritable. **Reports** snapshot the reported message so reviewers still see it if it's deleted; there's no admin UI yet, so review them in the `reports` table.
 - Room approvals lock the room row so concurrent approvals can't exceed capacity.
+- **Rooms are hosted, edited and cancelled by their host.** Editing tells everyone who has a place; spots cannot drop below the people already in. Cancelling keeps the row (`cancelled_at`), hides the room from everyone except people who had a place or were waiting (they see it marked cancelled, as news), and closes it to new requests. Answers and cancellations are "news" until the member opens Rooms (`room_members.decision_seen_at`); hosts are told how many people are waiting. `GET /me/unread` returns a `rooms` count that drives the Rooms tab badge.
+- **Profile edits are never lost silently.** Each mode's form stays mounted, so switching tabs keeps what you typed; a mode with unsaved changes gets a dot, and leaving the page asks first.
 
 ## Not built yet
 Geofenced presence (currently: app open = on campus), notifications, web and end-to-end tests, rate limits on non-auth endpoints, an admin/moderation UI for reports.

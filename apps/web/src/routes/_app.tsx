@@ -29,7 +29,7 @@ function Shell() {
   const { onCampusNow } = useRealtime({ onCampus: true, onDepartmentDecision: () => router.invalidate() })
   // What is waiting for you (unread chats, unanswered invites). Pushes keep it fresh; it also refreshes when you return to the tab.
   const unread = useQuery({ queryKey: ['unread'], queryFn: () => unwrap(api.me.unread.get()) })
-  const waiting = unread.data?.total ?? 0
+  const waiting = (unread.data?.total ?? 0) + (unread.data?.rooms ?? 0)
   useEffect(() => { document.title = waiting > 0 ? `(${waiting}) Met On Campus` : 'Met On Campus' }, [waiting])
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col lg:max-w-6xl">
@@ -52,7 +52,7 @@ function Shell() {
         {NAV.map((n) => (
           <Link key={n.to} to={n.to} className="flex flex-1 items-center justify-center text-[13px] font-medium text-ink-2" activeProps={{ className: 'font-semibold !text-ink border-t-2 border-ink -mt-px' }}>
             {n.label}
-            {n.to === '/messages' && waiting > 0 && <span className="ml-1.5 min-w-5 rounded-full bg-ink px-1.5 text-center font-mono text-[11px] leading-5 text-white"><span className="sr-only">{waiting} waiting</span><span aria-hidden>{waiting}</span></span>}
+            {(() => { const n2 = n.to === '/messages' ? (unread.data?.total ?? 0) : n.to === '/rooms' ? (unread.data?.rooms ?? 0) : 0; return n2 > 0 && <span className="ml-1.5 min-w-5 rounded-full bg-ink px-1.5 text-center font-mono text-[11px] leading-5 text-white"><span className="sr-only">{n2} waiting</span><span aria-hidden>{n2}</span></span> })()}
           </Link>
         ))}
       </nav>
