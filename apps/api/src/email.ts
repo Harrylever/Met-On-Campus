@@ -1,9 +1,10 @@
-import { env } from './env'
+import { env } from "./env"
 
 // Resend over plain fetch (no SDK). Without RESEND_API_KEY, dev prints the code to the console;
 // production refuses to start without a key (see assertEmailConfigured).
 export function assertEmailConfigured() {
-  if (env.isProd && !env.resendApiKey) throw new Error('RESEND_API_KEY is required in production')
+  if (env.isProd && !env.resendApiKey)
+    throw new Error("RESEND_API_KEY is required in production")
 }
 
 // Dev/test only: codes that would have been emailed, newest last. Never populated when a Resend key is set.
@@ -12,12 +13,16 @@ export const devOutbox: { to: string; code: string }[] = []
 export async function sendVerificationCode(to: string, code: string) {
   if (!env.resendApiKey) {
     console.log(`[email:dev] verification code for ${to}: ${code}`)
-    devOutbox.push({ to, code }); if (devOutbox.length > 100) devOutbox.shift()
+    devOutbox.push({ to, code })
+    if (devOutbox.length > 100) devOutbox.shift()
     return
   }
   const res = await fetch(env.resendApiUrl, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${env.resendApiKey}`, 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.resendApiKey}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from: env.emailFrom,
       to: [to],
@@ -27,5 +32,6 @@ export async function sendVerificationCode(to: string, code: string) {
     }),
     signal: AbortSignal.timeout(8000),
   })
-  if (!res.ok) throw new Error(`resend ${res.status}: ${(await res.text()).slice(0, 200)}`)
+  if (!res.ok)
+    throw new Error(`resend ${res.status}: ${(await res.text()).slice(0, 200)}`)
 }
