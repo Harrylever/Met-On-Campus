@@ -34,7 +34,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.015em; }
   .input { @apply h-12 w-full rounded-[10px] border border-ink-3 bg-subtle px-3 text-[15px] outline-none focus:border-ink; }
   .chip { @apply inline-flex h-11 shrink-0 items-center rounded-full border border-line bg-surface px-4 text-sm text-ink-2 aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-white; }
   .label { @apply font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-ink-2; }
-  .pill { @apply inline-flex h-6 items-center gap-1.5 rounded-full bg-surface/90 px-2.5 text-xs font-medium ring-1 ring-line; }
+  .pill { @apply inline-flex h-7 w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-surface/90 px-3 text-xs font-medium ring-1 ring-line; }
   .dot-live { @apply size-2 rounded-full bg-live; animation: pulse 2s ease-in-out infinite; }
 }
 @keyframes pulse { 50% { opacity: .35; } }

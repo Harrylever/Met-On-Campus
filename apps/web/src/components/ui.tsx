@@ -2,7 +2,7 @@ import type { Intent } from '~/lib/api'
 
 export function Brand() {
   return (
-    <span className="inline-flex items-center gap-2.5 font-display text-xl font-semibold tracking-tight">
+    <span className="inline-flex items-center gap-2.5 whitespace-nowrap font-display text-xl font-semibold tracking-tight">
       <span aria-hidden className="inline-flex">
         <i className="size-4 rounded-full border-2 border-canvas bg-study" />
         <i className="-ml-1.5 size-4 rounded-full border-2 border-canvas bg-friends" />

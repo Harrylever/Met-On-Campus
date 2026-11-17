@@ -21,12 +21,13 @@ function Shell() {
   const { onCampusNow } = useRealtime({ onCampus: true })
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col lg:max-w-6xl">
-      <header className="flex items-center justify-between gap-3 px-4 pt-5">
+      <header className="flex flex-col gap-3 px-4 pt-5 lg:flex-row lg:items-center lg:justify-between">
         <Brand />
-        <span className="flex items-center gap-2">
+        {/* Chips get their own row on phones: brand + two chips cannot fit one 358px line without wrapping. */}
+        <div className="flex flex-wrap items-center gap-2">
           {onCampusNow != null && <span className="pill"><i className="dot-live" />{onCampusNow} on campus</span>}
           <VerifiedPill campus={me.user.university} />
-        </span>
+        </div>
       </header>
       <div className="flex-1 px-4 pb-24 pt-5"><Outlet /></div>
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 mx-auto flex h-16 max-w-md border-t border-line bg-surface lg:max-w-6xl">
