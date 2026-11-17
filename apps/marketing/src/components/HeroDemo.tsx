@@ -37,7 +37,7 @@ export function HeroDemo() {
           {/* A scene photo for the mode (not a portrait of the example student), hotlinked from Unsplash with credit. */}
           <img src={photoSrc(photo, 800)} srcSet={`${photoSrc(photo, 480)} 480w, ${photoSrc(photo, 800)} 800w, ${photoSrc(photo, 1200)} 1200w`}
             sizes="(min-width: 1024px) 440px, 90vw" alt={photo.alt} width={800} height={500} decoding="async" className="size-full object-cover" />
-          {p.live && <span className="absolute right-3 top-3 inline-flex h-7 items-center gap-1.5 rounded-full bg-surface px-3 text-xs font-medium text-ink ring-1 ring-line"><i className="live-dot size-2 rounded-full bg-[#16A34A]" />On Campus Now</span>}
+          {p.live && <span className="absolute right-3 top-3 inline-flex h-7 items-center gap-1.5 rounded-full bg-surface px-3 text-xs font-medium text-ink ring-1 ring-line"><i className="live-dot size-2 rounded-full bg-[#16A34A]" />Online now</span>}
         </div>
         <div className="space-y-3 p-5">
           <div>

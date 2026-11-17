@@ -22,7 +22,7 @@ export default function Terms() {
       </ul>
 
       <h2>3. How the app works</h2>
-      <p>You choose which modes to turn on: Study, Friends and Romance. Each has its own profile and inbox. You can send invitations, message people you are connected to, suggest meetups at public campus spots, and join rooms for Study and Friends. Features may change as we improve the app.</p>
+      <p>You choose which modes to turn on: Study, Friends and Romance. Each has its own profile and inbox. You can send invitations, which the other person accepts or turns down, message people you are connected to, suggest meetups at public campus spots, and join rooms for Study and Friends. Features may change as we improve the app.</p>
 
       <h2>4. Rules</h2>
       <p>You agree not to:</p>
@@ -39,7 +39,7 @@ export default function Terms() {
       <p>We confirm that you control a university email address. We do not run background checks and we cannot confirm who anyone is or what they are like. You decide whether to meet someone and you are responsible for your own safety. Use public places, tell a friend, and read our <Link href="/safety">safety page</Link>.</p>
 
       <h2>6. Your content</h2>
-      <p>You keep ownership of what you write on your profile and in messages. You give us permission to store it and show it to other students as the app is designed to, for as long as your account exists. You are responsible for what you post.</p>
+      <p>You keep ownership of what you write on your profile and in messages. You give us permission to store it and show it to other students as the app is designed to, for as long as your account exists. This includes profile photos, which we resize and review before anyone else sees them; we may refuse or remove a photo that breaks these rules. You are responsible for what you post.</p>
 
       <h2>7. Moderation</h2>
       <p>Students can report profiles and messages. We review reports and can dismiss them, record a warning, or suspend an account. A suspended account is signed out and hidden from other students. We may act without notice where we think it is needed to keep people safe.</p>

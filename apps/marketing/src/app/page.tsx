@@ -26,7 +26,9 @@ const faq = [
   { q: 'Do I need to download anything?', a: <>No. It runs in your phone&apos;s browser. <a href={site.appUrl}>Open the app</a> and sign in with your school email.</> },
   { q: 'Can other students see my email?', a: <>No. Your email is only used to confirm you are a student and to send you sign-in codes.</> },
   { q: 'Will people in Friends see my Romance profile?', a: <>No. People only see the profile for the mode where they found you, and Romance is only shown to students who also turned it on. A Study chat never appears in Friends or Romance either.</> },
-  { q: 'What does On Campus Now mean?', a: <>While you have the app open, you show up as on campus. When you close it, you drop off by itself after about a minute and a half.</> },
+  { q: 'What does "Online now" mean?', a: <>While you have the app open, you show up as online. When you close it, you drop off by itself after about a minute and a half. We do not track where you are, so online does not mean on campus: check the spot with the person before you set off.</> },
+  { q: 'Do I have to say yes to every invite?', a: <>No. When someone invites you, you choose Accept or Not now. Until you answer, they can send one message. If you choose Not now, the conversation closes and they cannot message you again.</> },
+  { q: 'Can I add a profile photo?', a: <>Yes, one for each mode, and it is optional. Our team checks every photo before anyone else sees it, and you will see why if one is not approved. In Romance, your photo is only shown to someone once you have both said yes.</> },
   { q: 'Someone is bothering me. What can I do?', a: <>Open their profile or your chat, choose Block or report, and pick an option. Blocking takes effect straight away. <Link href="/safety">Read how safety works</Link>.</> },
 ]
 
@@ -78,11 +80,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* On campus now + rooms */}
+      {/* Online now + rooms */}
       <section className="container-x grid items-center gap-12 py-16 md:py-24 lg:grid-cols-2 lg:gap-20">
         <div>
           <h2 className="max-w-[16ch] text-[clamp(2rem,4.4vw,3.25rem)]">See who is around right now.</h2>
-          <p className="mt-5 max-w-[52ch] text-lg text-ink-2">Students with the app open show up as On Campus Now, and drop off on their own when they leave. Join a study room or a hangout at a public campus spot; the host approves who comes.</p>
+          <p className="mt-5 max-w-[52ch] text-lg text-ink-2">Students with the app open show up as Online now, and drop off on their own when they leave. Join a study room or a hangout at a public campus spot; the host approves who comes.</p>
           <p className="mt-4 max-w-[52ch] text-ink-2">Rooms are for Study and Friends only. Romance meetups are arranged one to one in Messages.</p>
         </div>
         <div>

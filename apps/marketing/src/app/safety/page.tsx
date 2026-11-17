@@ -19,6 +19,7 @@ export default function Safety() {
       <ul>
         <li>You are only shown to students who also turned Romance on, and you only see them.</li>
         <li>You can hide your Romance profile from students in your own department.</li>
+        <li>Your Romance photo is only shown to someone once you have both said yes to each other.</li>
         <li>There are no group rooms for Romance. Meetups are arranged one to one in Messages.</li>
       </ul>
 
@@ -32,6 +33,12 @@ export default function Safety() {
         <li>In an emergency, call 112 or campus security first.</li>
       </ul>
 
+      <h2>Photos are checked first</h2>
+      <p>Our team looks at every profile photo before another student can see it, and nothing is shown while it waits. If we do not approve one, you are told why and can upload another. Photos are never public links: they can only be seen by students who are allowed to see your profile in that mode, and a block or removal stops them within minutes.</p>
+
+      <h2>Answering invites</h2>
+      <p>When someone invites you, you can accept or choose Not now. Until you answer, they can send you a single message. If you choose Not now, the conversation closes for both of you and they stop appearing in your search results.</p>
+
       <h2>Blocking</h2>
       <p>You can block anyone from their profile card or from your chat with them. It takes effect straight away and works both ways: you stop seeing each other in search results and rooms, and the conversation is hidden and closed for both of you. You can undo it from your profile.</p>
 
@@ -41,7 +48,7 @@ export default function Safety() {
 
       <h2>What our team can and cannot see</h2>
       <ul>
-        <li><strong>Can see:</strong> account and profile details, how active an account is, who has reported or blocked whom, and the saved text of a message that was reported.</li>
+        <li><strong>Can see:</strong> account and profile details, the photos you upload (to review them), how active an account is, who has reported or blocked whom, and the saved text of a message that was reported.</li>
         <li><strong>Cannot see:</strong> your private messages, unless you or the other person reported that specific message.</li>
         <li><strong>Accountability:</strong> every sign-in by our staff, every search, every time a profile is opened and every moderation action is recorded in a log.</li>
       </ul>
