@@ -65,6 +65,9 @@ Tests run in-process against a real Postgres and Redis (db 15). They truncate ta
   - Env var `VITE_API_URL=https://<api host>`. It is read at build time, so redeploy after changing it.
   - The API's login cookie is `SameSite=Lax`, so the web and API hosts must share a parent domain (`app.` and the API host under the same site), and the API's `WEB_ORIGIN` must equal the web origin exactly.
 
+## Database migrations
+Railway runs the committed migrations before every API deploy (`preDeploy: bun run db:migrate` in `.railway/railway.ts`); a failed migration rejects the release and the old one keeps serving. It cannot create them: after changing `packages/db/src/schema.ts`, run `bun run db:generate` and commit the new SQL file and the journal. `bun run db:check` (also run by CI) fails if the schema and the migrations disagree. Local dev does not migrate for you: run `bun run db:migrate` after pulling. Deploys overlap briefly, so keep migrations additive and split anything destructive (drop or rename a column) across two deploys. Drizzle has no down-migrations; undoing a change means a new forward migration or a restore from backup.
+
 ## Design decisions
 - **Modes never mix.** `intent_profiles` has one row per (user, mode); conversations are unique per (intent, pair) and the inbox API requires `intent`.
 - **Romance is mutual opt-in** and honours "hide from my department" on either side (`apps/api/src/visibility.ts`).

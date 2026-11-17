@@ -16,7 +16,8 @@
     "db:seed": "bun run --filter @moc/db seed",
     "test": "bun run --filter @moc/api test",
     "test:setup": "createdb metoncampus_test || true",
-    "admin": "bun run --filter @moc/api admin"
+    "admin": "bun run --filter @moc/api admin",
+    "db:check": "bash scripts/check-migrations.sh"
   },
   "devDependencies": {
     "railway": "^3.17.0"
