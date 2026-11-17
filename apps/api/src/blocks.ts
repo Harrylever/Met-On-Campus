@@ -1,19 +1,23 @@
 import { and, eq, or } from "drizzle-orm"
-import { blocks } from "@moc/db"
+import { blocks, users } from "@moc/db"
 import { db } from "./context"
 
-/** Everyone `userId` has blocked or been blocked by. Blocks are symmetric in effect. */
+/** Everyone `userId` should not see or reach: people they have blocked or been blocked by, plus suspended accounts. */
 export async function blockedWith(userId: string): Promise<Set<string>> {
   const rows = await db
     .select()
     .from(blocks)
     .where(or(eq(blocks.blockerId, userId), eq(blocks.blockedId, userId)))
-  return new Set(
-    rows.map((r) => (r.blockerId === userId ? r.blockedId : r.blockerId)),
-  )
+  const suspended = await db.select({ id: users.id }).from(users).where(eq(users.status, "suspended"))
+  return new Set([
+    ...rows.map((r) => (r.blockerId === userId ? r.blockedId : r.blockerId)),
+    ...suspended.map((s) => s.id),
+  ])
 }
 
 export async function isBlockedBetween(a: string, b: string): Promise<boolean> {
+  const [gone] = await db.select({ id: users.id }).from(users).where(and(or(eq(users.id, a), eq(users.id, b)), eq(users.status, "suspended"))).limit(1)
+  if (gone) return true // a suspended account behaves like a block in every direction
   const [row] = await db
     .select()
     .from(blocks)

@@ -9,8 +9,15 @@ import { safetyRoutes } from "./routes/safety"
 import { roomRoutes } from "./routes/rooms"
 import { presenceRoutes } from "./routes/presence"
 import { wsRoutes } from "./ws"
+import { adminAuthRoutes, adminSessionRoutes } from "./admin/auth-routes"
+import { adminRoutes } from "./admin/routes"
+import { adminServiceGate } from "./admin/session"
+import { recordRequest } from "./metrics"
 
 export const app = new Elysia()
+  // Every /admin/* request must carry the platform server's secret before anything else runs.
+  .onRequest(({ request }) => adminServiceGate(request))
+  .onAfterResponse({ as: "global" }, ({ set }) => recordRequest(Number(set.status ?? 200)))
   .use(cors({ origin: env.webOrigin, credentials: true }))
   .get("/health", () => ({ ok: true }))
   .use(authRoutes)
@@ -21,6 +28,9 @@ export const app = new Elysia()
   .use(safetyRoutes)
   .use(presenceRoutes)
   .use(wsRoutes)
+  .use(adminAuthRoutes)
+  .use(adminSessionRoutes)
+  .use(adminRoutes)
 
 // The web app imports this type for Eden Treaty. Nothing else from the api leaks to the client.
 export type App = typeof app

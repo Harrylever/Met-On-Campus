@@ -49,6 +49,7 @@ export const authed = new Elysia({ name: "authed" }).resolve(
       cookie[COOKIE]?.value as string | undefined,
     )
     if (!user) return status(401, { error: "unauthenticated" })
+    if (user.status === "suspended") return status(403, { error: "account_suspended" })
     return { user }
   },
 )
@@ -143,6 +144,8 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         .from(users)
         .where(eq(users.email, email))
         .limit(1)
+      // Do not mint a session for a suspended student; the code is already spent.
+      if (existing?.status === "suspended") return status(403, { error: "account_suspended" })
       const user =
         existing ??
         (

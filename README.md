@@ -5,6 +5,7 @@ Bun workspaces monorepo.
 | Path | What |
 |---|---|
 | `apps/web` | TanStack Start (React, Vite, Tailwind v4). Talks to the API through Eden Treaty. |
+| `apps/platform` | Next.js staff monitoring app (see below). |
 | `apps/api` | ElysiaJS on Bun: REST + native WebSocket (`/ws`). Exports `type App` for Eden. |
 | `packages/db` | Drizzle ORM schema + migrations (PostgreSQL). |
 
@@ -20,6 +21,22 @@ bun run dev                   # web :3000, api :3001
 
 Dev sign-in: request a code for any `*.edu.ng` address. With `RESEND_API_KEY` empty the code prints in the API console; set it (plus `EMAIL_FROM` on your verified Resend domain) to send real email. Production refuses to boot without the key.
 `bun run db:seed` loads sample students, rooms and chats (sign in as `amina@st.futminna.edu.ng`).
+
+## Platform app (staff monitoring)
+`apps/platform` is a separate Next.js app for `platform.metoncampus.xyz`: overview metrics, reports queue with moderation (dismiss / record warning / suspend), student lookup, live activity, service health + Railway deployments, and an audit log.
+
+- **No public sign-up.** Staff are created with `bun run admin invite <email>` (prints a one-time, 24h setup link). The address must also be in the API's `PLATFORM_ADMIN_EMAILS`. Login is email + password (argon2id) + authenticator code, with 10 single-use backup codes. 5 failures lock the account for 15 minutes; sessions last 8h, 30 min idle.
+- **Staff cannot read private chats.** They see counts, profiles, and the saved snapshot of a *reported* message. Every sign-in, search, profile view and moderation action is written to the audit log.
+- **Data path.** The platform's server calls `/admin/*` on the API with a shared secret (`ADMIN_API_TOKEN`) plus the staff member's session. The browser never talks to the API from this app, and the database stays private.
+- **Suspending** a student ends their sessions immediately, blocks sign-in, and hides them from Discover, rooms and chats. Restoring is one click.
+
+Local: set `ADMIN_API_TOKEN`, `ADMIN_ENCRYPTION_KEY`, `PLATFORM_ADMIN_EMAILS` in `.env` (see `.env.example`) and the same token in `apps/platform/.env.local`, then `bun run dev` (platform on :3100).
+
+Production:
+1. Railway (API): set `ADMIN_API_TOKEN`, `ADMIN_ENCRYPTION_KEY`, `PLATFORM_ADMIN_EMAILS` (they are `preserve()` in `.railway/railway.ts`, so they live only in Railway), then `railway config apply`. The next deploy runs the new migration.
+2. Vercel (new project): Root Directory `apps/platform`, "Include source files outside of the Root Directory" on. Env: `ADMIN_API_URL=https://jeer.metoncampus.xyz`, the same `ADMIN_API_TOKEN`, and optionally `RAILWAY_API_TOKEN` / `RAILWAY_PROJECT_ID` / `RAILWAY_ENVIRONMENT_ID` / `RAILWAY_SERVICE_ID` for the deployments panel. Add the domain `platform.metoncampus.xyz`.
+3. Create your account: `railway ssh --service @moc/api -- bun apps/api/src/admin/cli.ts invite you@example.com`, open the link, set a password, scan the QR code, save the backup codes.
+4. After the first deploy, confirm `/admin/overview` on the API returns 404 without the token, and that the platform's pages send the CSP and `X-Frame-Options` headers.
 
 ## Tests
 ```sh

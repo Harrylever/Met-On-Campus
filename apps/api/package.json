@@ -9,7 +9,8 @@
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "admin": "bun src/admin/cli.ts"
   },
   "dependencies": {
     "@moc/db": "workspace:*",

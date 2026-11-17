@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-grotesk), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --color-canvas: var(--canvas); --color-surface: var(--surface); --color-subtle: var(--subtle); --color-line: var(--line);
+  --color-ink: var(--ink); --color-ink-2: var(--ink-2); --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent); --color-danger: var(--danger); --color-ok: var(--ok); --color-warn: var(--warn);
+}
+
+/* Tokens are roles, not hex: light/dark swap in one place. Dark is its own selected set, not an inversion. */
+:root {
+  color-scheme: light;
+  --canvas: #FAF9F6; --surface: #FFFFFF; --subtle: #F3F1EC; --line: #E6E3DC;
+  --ink: #141413; --ink-2: #57534E; --ink-3: #6B665F;
+  --accent: #1D4ED8; --danger: #B91C1C; --ok: #047857; --warn: #B45309;
+  --series-1: #2a78d6; --status-critical: #d03b3b; --grid: #E6E3DC;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --canvas: #111110; --surface: #1A1A19; --subtle: #262623; --line: #2E2E2A;
+    --ink: #F5F5F4; --ink-2: #C3C2B7; --ink-3: #A8A29E;
+    --accent: #93C5FD; --danger: #FCA5A5; --ok: #6EE7B7; --warn: #FCD34D;
+    --series-1: #3987e5; --status-critical: #d03b3b; --grid: #2E2E2A;
+  }
+}
+html, body { background: var(--canvas); color: var(--ink); font-family: var(--font-sans); }
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.015em; }
+
+@layer components {
+  .btn { @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-canvas transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40; }
+  .btn-ghost { @apply border border-line bg-transparent text-ink hover:border-ink-3; }
+  .btn-danger { @apply bg-danger text-white; }
+  .input { @apply h-10 w-full rounded-lg border border-line bg-subtle px-3 text-sm text-ink outline-none focus:border-ink-3 focus:ring-2 focus:ring-accent/30; }
+  .card { @apply rounded-xl border border-line bg-surface p-4; }
+  .label { @apply font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-ink-2; }
+  .badge { @apply inline-flex h-6 items-center rounded-md border border-line bg-subtle px-2 text-xs font-medium text-ink-2; }
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

@@ -10,6 +10,8 @@ export const messageKindEnum = pgEnum('message_kind', ['text', 'meetup'])
 export const meetupStatusEnum = pgEnum('meetup_status', ['pending', 'confirmed', 'declined'])
 export const reportReasonEnum = pgEnum('report_reason', ['harassment', 'spam', 'fake_profile', 'inappropriate', 'unsafe', 'other'])
 export const reportStatusEnum = pgEnum('report_status', ['open', 'reviewed', 'dismissed'])
+export const userStatusEnum = pgEnum('user_status', ['active', 'suspended'])
+export const moderationActionEnum = pgEnum('moderation_action', ['dismiss', 'warn', 'suspend', 'unsuspend'])
 export const memberStatusEnum = pgEnum('member_status', ['pending', 'approved', 'declined'])
 
 const id = () => uuid('id').primaryKey().defaultRandom()
@@ -23,6 +25,9 @@ export const users = pgTable('users', {
   department: text('department').notNull(),
   level: integer('level').notNull(), // 100..500
   verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  status: userStatusEnum('status').notNull().default('active'),
+  suspendedAt: timestamp('suspended_at', { withTimezone: true }),
+  suspendedReason: text('suspended_reason'),
   createdAt: createdAt(),
 }, (t) => [check('level_range', sql`${t.level} between 100 and 900`)])
 
@@ -128,8 +133,62 @@ export const reports = pgTable('reports', {
   messageId: uuid('message_id').references(() => messages.id, { onDelete: 'set null' }),
   messageSnapshot: text('message_snapshot'),
   status: reportStatusEnum('status').notNull().default('open'),
+  reviewedBy: uuid('reviewed_by'), // admin_users.id (no FK so deleting an admin keeps the history)
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [index('reports_status_idx').on(t.status, t.createdAt), index('reports_reported_idx').on(t.reportedId)])
+
+// ---- Platform (staff) ----------------------------------------------------------------------------
+// Staff are separate from students: own table, own sessions, own audit trail. Created only by the
+// `admin:invite` CLI; there is no public sign-up. Secrets are never stored in plain text:
+// password = argon2id, TOTP secret = AES-256-GCM, backup codes + setup token + session tokens = SHA-256.
+export const adminUsers = pgTable('admin_users', {
+  id: id(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash'),
+  totpSecretEnc: text('totp_secret_enc'),
+  totpEnabledAt: timestamp('totp_enabled_at', { withTimezone: true }),
+  backupCodeHashes: text('backup_code_hashes').array().notNull().default(sql`'{}'::text[]`),
+  setupTokenHash: text('setup_token_hash'),
+  setupExpiresAt: timestamp('setup_expires_at', { withTimezone: true }),
+  disabledAt: timestamp('disabled_at', { withTimezone: true }),
+  failedLogins: integer('failed_logins').notNull().default(0),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  createdAt: createdAt(),
+})
+
+export const adminSessions = pgTable('admin_sessions', {
+  tokenHash: text('token_hash').primaryKey(),
+  adminId: uuid('admin_id').notNull().references(() => adminUsers.id, { onDelete: 'cascade' }),
+  ip: text('ip'),
+  userAgent: text('user_agent'),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: createdAt(),
+}, (t) => [index('admin_sessions_admin_idx').on(t.adminId)])
+
+// Append-only record of what staff did: logins, searches, views of a student, every moderation step.
+export const adminAudit = pgTable('admin_audit', {
+  id: id(),
+  adminId: uuid('admin_id'),
+  action: text('action').notNull(),
+  targetType: text('target_type'),
+  targetId: text('target_id'),
+  meta: text('meta'), // small JSON string; never contains secrets
+  ip: text('ip'),
+  createdAt: createdAt(),
+}, (t) => [index('admin_audit_created_idx').on(t.createdAt), index('admin_audit_admin_idx').on(t.adminId, t.createdAt)])
+
+export const moderationActions = pgTable('moderation_actions', {
+  id: id(),
+  adminId: uuid('admin_id').notNull(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reportId: uuid('report_id').references(() => reports.id, { onDelete: 'set null' }),
+  action: moderationActionEnum('action').notNull(),
+  note: text('note').notNull().default(''),
+  createdAt: createdAt(),
+}, (t) => [index('moderation_user_idx').on(t.userId, t.createdAt)])
 
 export const userRelations = relations(users, ({ many }) => ({ profiles: many(intentProfiles) }))
 export const profileRelations = relations(intentProfiles, ({ one }) => ({ user: one(users, { fields: [intentProfiles.userId], references: [users.id] }) }))

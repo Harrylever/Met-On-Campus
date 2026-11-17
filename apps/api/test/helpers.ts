@@ -1,6 +1,9 @@
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { sql } from 'drizzle-orm'
-import { intentProfiles, sessions, users } from '@moc/db'
+import { adminSessions, adminUsers, intentProfiles, sessions, users } from '@moc/db'
+import { eq } from 'drizzle-orm'
+import { encrypt, hashBackupCode, newBackupCodes } from '../src/admin/crypto'
+import { hotp, base32Decode, newTotpSecret } from '../src/admin/totp'
 import { app } from '../src'
 import { db, redis } from '../src/context'
 
@@ -9,7 +12,7 @@ export type Intent = 'study' | 'friends' | 'romance'
 
 export async function resetAll() {
   await migrate(db, { migrationsFolder: new URL('../../../packages/db/drizzle', import.meta.url).pathname })
-  await db.execute(sql`truncate table users, email_codes restart identity cascade`)
+  await db.execute(sql`truncate table users, email_codes, admin_users, admin_audit restart identity cascade`)
   await redis.flushdb()
 }
 
@@ -39,3 +42,40 @@ export async function call(user: { token: string } | null, method: string, path:
   let json: any = text; try { json = JSON.parse(text) } catch {}
   return { status: res.status, json, headers: res.headers }
 }
+
+// ---- Staff helpers ----------------------------------------------------------------------------------
+export const SERVICE_TOKEN = process.env.ADMIN_API_TOKEN!
+export const currentCode = (secret: string, at = Date.now()) => hotp(base32Decode(secret), Math.floor(at / 30_000))
+export const PASSWORD = 'correct horse battery staple 42'
+
+/** A fully enrolled staff account (password + TOTP + backup codes), created directly in the database. */
+export async function makeAdmin(email = 'root@platform.test', opts: { password?: string } = {}) {
+  const secret = newTotpSecret()
+  const { codes, hashes } = newBackupCodes()
+  const password = opts.password ?? PASSWORD
+  const [a] = await db.insert(adminUsers).values({
+    email, passwordHash: await Bun.password.hash(password, { algorithm: 'argon2id' }), totpSecretEnc: encrypt(secret),
+    totpEnabledAt: new Date(), backupCodeHashes: hashes,
+  }).returning()
+  return { ...a!, password, secret, backupCodes: codes }
+}
+
+/** Call /admin/* the way the platform server does: service token, optional staff session, optional forwarded IP. */
+export async function adminCall(method: string, path: string, body?: unknown, o: { session?: string; token?: string | null; ip?: string } = {}) {
+  const headers: Record<string, string> = { 'x-client-ip': o.ip ?? '203.0.113.9' }
+  if (o.token !== null) headers.authorization = `Bearer ${o.token ?? SERVICE_TOKEN}`
+  if (o.session) headers['x-admin-session'] = o.session
+  return call(null, method, path, body, headers)
+}
+
+/** Full password + TOTP login. Returns the session token. */
+export async function adminLogin(a: { email: string; password: string; secret: string }, ip?: string) {
+  const l = await adminCall('POST', '/admin/auth/login', { email: a.email, password: a.password }, { ip })
+  if (l.status !== 200) throw new Error(`login failed: ${l.status} ${JSON.stringify(l.json)}`)
+  // Test convenience only: let the helper sign in repeatedly inside one 30s window (the replay test uses adminCall directly).
+  for (const k of await redis.keys('admin:totp:used:*')) await redis.del(k)
+  const m = await adminCall('POST', '/admin/auth/mfa', { challenge: l.json.challenge, code: currentCode(a.secret) }, { ip })
+  if (m.status !== 200) throw new Error(`mfa failed: ${m.status} ${JSON.stringify(m.json)}`)
+  return m.json.sessionToken as string
+}
+export { eq, adminSessions, hashBackupCode }

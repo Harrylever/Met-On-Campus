@@ -18,5 +18,15 @@ export const env = {
   emailFrom: process.env.EMAIL_FROM ?? "Met On Campus <onboarding@resend.dev>",
   // Only true behind a proxy that overwrites X-Forwarded-For; otherwise clients could spoof their IP.
   trustProxy: process.env.TRUST_PROXY === "true",
+  // Platform (staff) app. /admin/* is disabled (404) unless ADMIN_API_TOKEN is set to a long random secret.
+  adminApiToken: process.env.ADMIN_API_TOKEN ?? "",
+  // Only these addresses can ever have a staff account, regardless of what is in the database.
+  adminEmails: (process.env.PLATFORM_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
+  // 32 random bytes, base64. Encrypts TOTP secrets at rest.
+  adminEncryptionKey: process.env.ADMIN_ENCRYPTION_KEY ?? "",
+  platformUrl: process.env.PLATFORM_URL ?? "https://platform.metoncampus.xyz",
   isProd: process.env.NODE_ENV === "production",
 }

@@ -58,6 +58,11 @@ export default defineRailway(() => {
       PRESENCE_TTL_SECONDS: "90",
       EMAIL_FROM: "Met On Campus <noreply@yes.metoncampus.xyz>",
       // Secrets and connection strings stay in Railway; the file only keeps them managed.
+      // Platform (staff) app. /admin/* is a 404 until ADMIN_API_TOKEN exists. Values live only in Railway:
+      PLATFORM_URL: "https://platform.metoncampus.xyz",
+      ADMIN_API_TOKEN: preserve(), // shared with the platform app's server, 32+ random characters
+      ADMIN_ENCRYPTION_KEY: preserve(), // 32 random bytes, base64; encrypts staff TOTP secrets at rest
+      PLATFORM_ADMIN_EMAILS: preserve(), // comma-separated allowlist of staff addresses
       DATABASE_URL: preserve(),
       REDIS_URL: preserve(),
       RESEND_API_KEY: preserve(),
