@@ -32,6 +32,9 @@ export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
         if (r?.status === 'declined' && r.toUserId === user.id) return false
         if (query.department && u.department !== query.department) return false
         if (query.level && u.level !== query.level) return false
+        // Search: someone's name, what they wrote, or a tag (a course code, a club).
+        const needle = query.q?.trim().toLowerCase()
+        if (needle && ![u.name, p.prompt, p.bio, ...p.tags].some((x) => (x ?? '').toLowerCase().includes(needle))) return false
         const sameDept = user.department !== NO_DEPARTMENT && u.department === user.department
         return !(intent === 'romance' && sameDept && (p.hideFromDepartment || mine.hideFromDepartment))
       })
@@ -48,5 +51,10 @@ export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
         }
       })
       .sort((a, b) => Number(b.onCampusNow) - Number(a.onCampusNow) || b.inCommon.length - a.inCommon.length)
-    return { cards, onCampusNow: cards.filter((c) => c.onCampusNow).length }
-  }, { query: t.Object({ intent: t.Union([t.Literal('study'), t.Literal('friends'), t.Literal('romance')]), department: t.Optional(t.String()), level: t.Optional(t.Numeric()) }) })
+    // Counts cover everyone who matches; only the page being asked for is sent, so a big campus never arrives all at once.
+    return { cards: cards.slice(0, query.limit ?? 24), total: cards.length, onCampusNow: cards.filter((c) => c.onCampusNow).length }
+  }, { query: t.Object({
+    intent: t.Union([t.Literal('study'), t.Literal('friends'), t.Literal('romance')]),
+    department: t.Optional(t.String()), level: t.Optional(t.Numeric()),
+    q: t.Optional(t.String({ maxLength: 60 })), limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+  }) })

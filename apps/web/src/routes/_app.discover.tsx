@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
+import { useDebounced, usePersisted } from '~/lib/persist'
 import { photoUrl } from '~/components/Avatar'
 import { LoadingRegion, Skeleton, StudentCardSkeleton, useSkeleton } from '~/components/Skeleton'
 import { SafetyMenu } from '~/components/safety'
@@ -19,17 +20,27 @@ const COPY: Record<Intent, { title: string; desc: string; cta: string; sent: str
 function Discover() {
   const { me } = Route.useRouteContext()
   const enabled = INTENTS.filter((i) => me.profiles.some((p) => p.intent === i.id && p.enabled))
-  const [intent, setIntent] = useState<Intent>(enabled[0]?.id ?? 'study')
-  const [dept, setDept] = useState<string>('')
-  const [level, setLevel] = useState<number | ''>('')
+  // Filters stay put when you leave to read a chat and come back, or reload.
+  const [savedIntent, setIntent] = usePersisted<Intent>('moc.discover.intent', enabled[0]?.id ?? 'study')
+  const intent = enabled.some((i) => i.id === savedIntent) ? savedIntent : (enabled[0]?.id ?? 'study')
+  const [dept, setDept] = usePersisted<string>('moc.discover.dept', '')
+  const [level, setLevel] = usePersisted<number | ''>('moc.discover.level', '')
+  const [search, setSearch] = usePersisted<string>('moc.discover.q', '')
+  const q = useDebounced(search.trim())
+  const PAGE = 24
+  const [limit, setLimit] = useState(PAGE)
+  useEffect(() => { setLimit(PAGE) }, [intent, dept, level, q]) // a new search starts from the top
   const [open, setOpen] = useState<string | null>(null)
   const qc = useQueryClient()
   const c = COPY[intent]
 
   const feed = useQuery({
-    queryKey: ['discover', intent, dept, level],
-    queryFn: () => unwrap(api.discover.get({ query: { intent, ...(dept && { department: dept }), ...(level && { level }) } })),
+    queryKey: ['discover', intent, dept, level, q, limit],
+    queryFn: () => unwrap(api.discover.get({ query: { intent, limit, ...(dept && { department: dept }), ...(level && { level }), ...(q && { q }) } })),
+    placeholderData: keepPreviousData, // keep the list on screen while a new page or filter loads
   })
+  // Every department on the campus, not only those in the current results, so choosing one never hides the others.
+  const meta = useQuery({ queryKey: ['meta'], queryFn: () => unwrap(api.meta.get()), staleTime: 60_000 })
   const connect = useMutation({
     mutationFn: (toUserId: string) => unwrap(api.connections.post({ toUserId, intent })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['discover'] }),
@@ -40,7 +51,9 @@ function Discover() {
   })
   const cards = feed.data?.cards ?? []
   const showSkeleton = useSkeleton(feed.isLoading)
-  const depts = [...new Set(cards.map((x) => x.department))]
+  const total = feed.data?.total ?? 0
+  const depts = [...new Set([...(meta.data?.departments ?? []), ...(dept ? [dept] : []), ...cards.map((x) => x.department)])]
+  const filtered = !!(dept || level || q)
 
   return (
     <div data-intent={intent} className="flex flex-col gap-5 lg:grid lg:grid-cols-[320px_1fr] lg:items-start lg:gap-8">
@@ -52,6 +65,10 @@ function Discover() {
           <p>{c.desc}</p>
           <p className="label flex items-center gap-1.5 pt-2 text-ink"><i className="dot-live" />{feed.isLoading ? <Skeleton className="h-3.5 w-24" /> : `${feed.data?.onCampusNow ?? 0} online now`}</p>
         </section>
+        <label className="block">
+          <span className="sr-only">Search students</span>
+          <input type="search" className="input" placeholder="Search by name, course or interest" value={search} maxLength={60} onChange={(e) => setSearch(e.target.value)} />
+        </label>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="Department">
           <button className="chip" aria-pressed={!dept} onClick={() => setDept('')}>All departments</button>
           {depts.map((d) => <button key={d} className="chip" aria-pressed={dept === d} onClick={() => setDept(d)}>{deptLabel(d)}</button>)}
@@ -63,9 +80,15 @@ function Discover() {
       </aside>
 
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between"><span className="label text-ink">{feed.isLoading ? <Skeleton className="h-3.5 w-20" /> : <>{cards.length} {cards.length === 1 ? 'student' : 'students'}</>}</span><span className="label">Online first</span></div>
+        <div className="flex items-center justify-between"><span className="label text-ink">{feed.isLoading ? <Skeleton className="h-3.5 w-20" /> : <>{total} {total === 1 ? 'student' : 'students'}</>}</span><span className="label">Online first</span></div>
         {feed.isError && <p role="alert" className="card text-danger">Could not load students. Try again in a moment.</p>}
-        {!feed.isLoading && cards.length === 0 && <div className="card space-y-2"><h2 className="text-[17px] font-semibold">No students match these filters</h2><p className="text-ink-2">Try another department or level, or clear both.</p><button className="btn btn-ghost" onClick={() => { setDept(''); setLevel('') }}>Clear Filters</button></div>}
+        {!feed.isLoading && cards.length === 0 && (
+          <div className="card space-y-2">
+            <h2 className="text-[17px] font-semibold">{filtered ? 'No students match' : 'No one here yet'}</h2>
+            <p className="text-ink-2">{filtered ? 'Try different words, another department or level, or clear the filters.' : 'You are early. Students from your campus appear here as they join.'}</p>
+            {filtered && <button className="btn btn-ghost" onClick={() => { setDept(''); setLevel(''); setSearch('') }}>Clear filters</button>}
+          </div>
+        )}
         {showSkeleton && <LoadingRegion label="Loading students" className="grid gap-4 xl:grid-cols-2">{[0, 1, 2].map((i) => <StudentCardSkeleton key={i} />)}</LoadingRegion>}
         <div className="grid gap-4 xl:grid-cols-2">
         {cards.map((s) => {
@@ -107,6 +130,11 @@ function Discover() {
           )
         })}
         </div>
+        {cards.length < total && (
+          <button className="btn btn-ghost self-center" disabled={feed.isFetching} onClick={() => setLimit(limit + PAGE)}>
+            {feed.isFetching ? 'Loading…' : `Show more (${total - cards.length} more)`}
+          </button>
+        )}
       </div>
     </div>
   )

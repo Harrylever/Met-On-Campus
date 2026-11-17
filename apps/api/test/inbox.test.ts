@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
-import { users } from '@moc/db'
+import { messages, users } from '@moc/db'
 import { db } from '../src/context'
 import { call, makeUser, resetAll, type Intent } from './helpers'
 
@@ -141,5 +141,49 @@ describe('display name', () => {
     expect((await call(u, 'PATCH', '/me', { name: 'dean m2200765', level: 400 })).status).toBe(200)
     expect((await call(u, 'PATCH', '/me', { name: 'Dean' })).status).toBe(200)
     expect((await call(u, 'PATCH', '/me', { name: 'dean m2200765' })).status).toBe(422)
+  })
+})
+
+describe('long chats and old proposals', () => {
+  test('the newest 200 messages are returned, oldest first, so a long chat keeps showing new ones', async () => {
+    const a = await makeUser('Amina'), b = await makeUser('Tunde')
+    const { conversationId, requestId } = await invite(a, b)
+    await answer(b, requestId!, 'accepted')
+    for (let i = 1; i <= 205; i++) await db.insert(messages).values({ conversationId, senderId: i % 2 ? a.id : b.id, kind: 'text', body: `m${i}`, createdAt: new Date(Date.now() - (206 - i) * 1000) })
+    const list = (await call(a, 'GET', `/conversations/${conversationId}/messages`)).json.messages as { body: string }[]
+    expect(list).toHaveLength(200)
+    expect(list[0]!.body).toBe('m6'); expect(list.at(-1)!.body).toBe('m205')
+  })
+
+  test('a meetup proposal whose time has passed can no longer be answered', async () => {
+    const a = await makeUser('Amina'), b = await makeUser('Tunde')
+    const { conversationId, requestId } = await invite(a, b)
+    await answer(b, requestId!, 'accepted')
+    const [m] = await db.insert(messages).values({ conversationId, senderId: a.id, kind: 'meetup', meetupWhere: 'University Library', meetupWhen: new Date(Date.now() - 60_000), meetupStatus: 'pending' }).returning()
+    const r = await call(b, 'PATCH', `/messages/${m!.id}/meetup`, { status: 'confirmed' })
+    expect(r.status).toBe(409); expect(r.json.error).toBe('expired')
+  })
+})
+
+describe('Discover paging and search', () => {
+  async function crowd(n: number) {
+    const me = await makeUser('Viewer')
+    for (let i = 1; i <= n; i++) await makeUser(`Student${String.fromCharCode(64 + (i % 26 || 26))}${i}`, { tags: i % 5 === 0 ? ['CSS 411'] : ['Football'] })
+    return me
+  }
+  test('sends a page at a time, with the total and online count for everyone who matches', async () => {
+    const me = await crowd(30)
+    const first = (await call(me, 'GET', '/discover?intent=study')).json
+    expect(first.cards).toHaveLength(24); expect(first.total).toBe(30)
+    expect((await call(me, 'GET', '/discover?intent=study&limit=30')).json.cards).toHaveLength(30)
+    expect((await call(me, 'GET', '/discover?intent=study&limit=0')).status).toBe(422)
+    expect((await call(me, 'GET', '/discover?intent=study&limit=101')).status).toBe(422)
+  })
+  test('searches names, prompts and tags without case mattering, and the total follows the search', async () => {
+    const me = await crowd(30)
+    const byTag = (await call(me, 'GET', '/discover?intent=study&q=css%20411')).json
+    expect(byTag.total).toBe(6); expect(byTag.cards.every((c: { tags: string[] }) => c.tags.includes('CSS 411'))).toBe(true)
+    expect((await call(me, 'GET', '/discover?intent=study&q=STUDENTA')).json.cards.every((c: { name: string }) => c.name.startsWith('StudentA'))).toBe(true)
+    expect((await call(me, 'GET', '/discover?intent=study&q=zzzz-nothing')).json.total).toBe(0)
   })
 })

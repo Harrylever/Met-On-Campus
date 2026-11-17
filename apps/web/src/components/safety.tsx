@@ -9,8 +9,8 @@ const REASONS = [
 type Reason = (typeof REASONS)[number][0]
 
 /** Small "Safety" disclosure: block, or report (optionally about one message). Inline, no modal, keyboard friendly. */
-export function SafetyMenu({ userId, name, intent, messageId, label = 'Safety' }: { userId: string; name: string; intent?: Intent; messageId?: string; label?: string }) {
-  const [open, setOpen] = useState(false)
+export function SafetyMenu({ userId, name, intent, messageId, label = 'Safety', defaultOpen = false, onClose }: { userId: string; name: string; intent?: Intent; messageId?: string; label?: string; defaultOpen?: boolean; onClose?: () => void }) {
+  const [open, setOpen] = useState(defaultOpen)
   const [mode, setMode] = useState<'menu' | 'report'>('menu')
   const [reason, setReason] = useState<Reason>('harassment')
   const [details, setDetails] = useState('')
@@ -18,12 +18,12 @@ export function SafetyMenu({ userId, name, intent, messageId, label = 'Safety' }
   const qc = useQueryClient()
   const refresh = () => qc.invalidateQueries()
 
-  const block = useMutation({ mutationFn: () => unwrap(api.blocks.post({ userId })), onSuccess: () => { setOpen(false); refresh() } })
+  const block = useMutation({ mutationFn: () => unwrap(api.blocks.post({ userId })), onSuccess: () => { setOpen(false); onClose?.(); refresh() } })
   const report = useMutation({
     mutationFn: () => unwrap(api.reports.post({ userId, reason, details: details || undefined, messageId, intent, alsoBlock })),
     onSuccess: refresh,
   })
-  const reset = () => { setOpen(false); setMode('menu'); report.reset(); setDetails('') }
+  const reset = () => { setOpen(false); setMode('menu'); report.reset(); setDetails(''); onClose?.() }
 
   if (!open) return <button type="button" className="text-[13px] text-ink-2 underline underline-offset-2" aria-expanded={false} onClick={() => setOpen(true)}>{label}</button>
 

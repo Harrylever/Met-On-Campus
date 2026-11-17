@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
@@ -17,6 +17,13 @@ export const Route = createFileRoute('/_app/messages')({
   component: Messages,
 })
 
+/** "3:42 PM" today, "Mon 3:42 PM" this week, with the date after that. */
+const formatStamp = (iso: string | Date) => {
+  const d = new Date(iso), days = (Date.now() - +d) / 86_400_000
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  if (d.toDateString() === new Date().toDateString()) return time
+  return days < 6 ? `${d.toLocaleDateString([], { weekday: 'short' })} ${time}` : `${d.toLocaleDateString([], { day: 'numeric', month: 'short' })}, ${time}`
+}
 const INVITED: Record<Intent, string> = { study: 'invited you to study together', friends: 'said hi', romance: 'sent you a Spark' }
 const SEND_ERRORS: Record<string, string> = {
   waiting_for_reply: 'Waiting for a reply. You can write more once they accept.',
@@ -62,8 +69,13 @@ function Messages() {
   const iWrote = !!msgs.data?.messages.some((m) => m.senderId === me.user.id)
   const waitingOnThem = current?.request?.status === 'pending' && current.request.direction === 'sent' && iWrote
   const [sendError, setSendError] = useState<string | null>(null)
+  const [reporting, setReporting] = useState<string | null>(null) // the message whose report menu is open
+  const bottom = useRef<HTMLDivElement>(null)
   // A draft belongs to one conversation: switching must never carry it to someone else.
-  useEffect(() => { setDraft(''); setComposing(false); setSendError(null) }, [current?.id])
+  useEffect(() => { setDraft(''); setComposing(false); setSendError(null); setReporting(null) }, [current?.id])
+  // Show the newest message when a chat opens and when one arrives.
+  const count = msgs.data?.messages.length ?? 0
+  useEffect(() => { if (count > 0) bottom.current?.scrollIntoView({ block: 'nearest' }) }, [current?.id, count])
   // Opening a conversation (with the tab in view) marks it read, so the badges clear.
   const [visible, setVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible')
   useEffect(() => { const f = () => setVisible(document.visibilityState === 'visible'); document.addEventListener('visibilitychange', f); return () => document.removeEventListener('visibilitychange', f) }, [])
@@ -93,7 +105,7 @@ function Messages() {
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
         {showSkeleton && <LoadingRegion label="Loading conversations"><ConversationChipsSkeleton /></LoadingRegion>}
-        {list.map((c) => <button key={c.id} className="chip" aria-pressed={current?.id === c.id} onClick={() => setActive({ ...active, [intent]: c.id })}>{c.with.name}{needsYou(c) && <span className="ml-1.5 min-w-5 rounded-full bg-(--i-ink) px-1.5 text-center font-mono text-[11px] leading-5 text-white"><span className="sr-only"> waiting</span><span aria-hidden>{c.unread || 'New'}</span></span>}</button>)}
+        {list.map((c) => <button key={c.id} className="chip" aria-pressed={current?.id === c.id} onClick={() => setActive({ ...active, [intent]: c.id })}>{c.with.name}{list.filter((o) => o.with.name === c.with.name).length > 1 && <span className="ml-1 text-xs font-normal opacity-70">{c.with.level}L</span>}{needsYou(c) && <span className="ml-1.5 min-w-5 rounded-full bg-(--i-ink) px-1.5 text-center font-mono text-[11px] leading-5 text-white"><span className="sr-only"> waiting</span><span aria-hidden>{c.unread || 'New'}</span></span>}</button>)}
       </div>
       {showSkeleton && <ConversationSkeleton />}
       {!current && !convos.isLoading && <p className="card text-ink-2">No {intent} conversations yet. Reach out from Discover.</p>}
@@ -116,26 +128,47 @@ function Messages() {
           )}
           {msgs.isLoading && <LoadingRegion label="Loading messages"><BubblesSkeleton /></LoadingRegion>}
           <ol className="flex flex-col gap-2">
-            {msgs.data?.messages.map((m) => {
+            {msgs.data?.messages.map((m, i, all) => {
               const mine = m.senderId === me.user.id
+              // A time label when a conversation starts, resumes after a pause, or a new day begins (like most chat apps).
+              const prev = all[i - 1]
+              const showTime = !prev || +new Date(m.createdAt) - +new Date(prev.createdAt) > 10 * 60_000 || new Date(m.createdAt).toDateString() !== new Date(prev.createdAt).toDateString()
+              const stamp = showTime && <li aria-hidden={false} className="self-center py-1 text-xs text-ink-3"><time dateTime={String(m.createdAt)}>{formatStamp(m.createdAt)}</time></li>
               if (m.kind === 'text') return (
-                <li key={m.id} className={`flex max-w-[85%] flex-col gap-1 ${mine ? 'self-end items-end' : 'self-start items-start'}`}>
-                  <span className={`rounded-2xl border px-3 py-2 ${mine ? 'border-(--i-ink) bg-(--i-ink) text-white' : 'border-(--i-line) bg-surface'}`}>{m.body}</span>
-                  {!mine && <SafetyMenu userId={current.with.id} name={current.with.name} intent={intent} messageId={m.id} label="Report this message" />}
-                </li>
+                <Fragment key={m.id}>
+                  {stamp}
+                  <li className={`flex max-w-[85%] flex-col gap-1 ${mine ? 'self-end items-end' : 'self-start items-start'}`}>
+                    <div className="flex items-center gap-1">
+                      <span className={`rounded-2xl border px-3 py-2 ${mine ? 'border-(--i-ink) bg-(--i-ink) text-white' : 'border-(--i-line) bg-surface'}`}>{m.body}</span>
+                      {!mine && reporting !== m.id && (
+                        <button type="button" onClick={() => setReporting(m.id)} aria-label="Report this message" title="Report this message"
+                          className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-subtle hover:text-ink">
+                          <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+                        </button>
+                      )}
+                    </div>
+                    {!mine && reporting === m.id && <SafetyMenu defaultOpen onClose={() => setReporting(null)} userId={current.with.id} name={current.with.name} intent={intent} messageId={m.id} label="Report this message" />}
+                  </li>
+                </Fragment>
               )
+              const expired = m.meetupStatus === 'pending' && !!m.meetupWhen && new Date(m.meetupWhen) < new Date()
               return (
-                <li key={m.id} className="rounded-[12px] border border-(--i-line) bg-(--i-bg) p-3">
-                  <span className="label text-(--i-ink)">Meetup proposal</span>
-                  <p className="font-semibold">{m.meetupWhere} · {m.meetupWhen && formatWhen(m.meetupWhen)}</p>
-                  {m.meetupStatus === 'confirmed' && <p className="text-sm font-medium text-live">Confirmed</p>}
-                  {m.meetupStatus === 'declined' && <p className="text-sm text-ink-2">Declined</p>}
-                  {m.meetupStatus === 'pending' && (mine ? <p className="text-sm text-ink-2">Waiting for {current.with.name}</p> :
-                    <div className="mt-2 flex gap-2"><button className="btn btn-i h-10" onClick={() => answer.mutate({ id: m.id, status: 'confirmed' })}>Accept</button><button className="btn btn-ghost h-10" onClick={() => answer.mutate({ id: m.id, status: 'declined' })}>Decline</button></div>)}
-                </li>
+                <Fragment key={m.id}>
+                  {stamp}
+                  <li className="rounded-[12px] border border-(--i-line) bg-(--i-bg) p-3">
+                    <span className="label text-(--i-ink)">Meetup proposal</span>
+                    <p className="font-semibold">{m.meetupWhere} · {m.meetupWhen && formatWhen(m.meetupWhen)}</p>
+                    {m.meetupStatus === 'confirmed' && <p className="text-sm font-medium text-live">Confirmed</p>}
+                    {m.meetupStatus === 'declined' && <p className="text-sm text-ink-2">Declined</p>}
+                    {expired && <p className="text-sm text-ink-2">That time has passed. Propose a new one.</p>}
+                    {m.meetupStatus === 'pending' && !expired && (mine ? <p className="text-sm text-ink-2">Waiting for {current.with.name}</p> :
+                      <div className="mt-2 flex gap-2"><button className="btn btn-i h-10" onClick={() => answer.mutate({ id: m.id, status: 'confirmed' })}>Accept</button><button className="btn btn-ghost h-10" onClick={() => answer.mutate({ id: m.id, status: 'declined' })}>Decline</button></div>)}
+                  </li>
+                </Fragment>
               )
             })}
           </ol>
+          <div ref={bottom} className="scroll-mb-44" aria-hidden="true" /> {/* room for the message box and the bottom nav */}
           {closed ? <p className="rounded-[10px] bg-subtle p-3 text-sm text-ink-2">This conversation is closed.</p>
           : waitingOnThem ? <p className="rounded-[10px] bg-subtle p-3 text-sm text-ink-2">Waiting for {current.with.name} to reply. You can write more once they accept.</p>
           : composing ? (

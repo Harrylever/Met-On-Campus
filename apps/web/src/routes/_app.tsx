@@ -8,9 +8,10 @@ import { Brand, VerifiedPill } from '~/components/ui'
 import { ShellSkeleton } from '~/components/Skeleton'
 
 export const Route = createFileRoute('/_app')({ ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data } = await api.me.get()
-    if (!data) throw redirect({ to: '/login' })
+    // Signed out (for example the session ran out): sign in, then come back to this page.
+    if (!data) throw redirect({ to: '/login', search: { redirect: location.pathname as '/discover' } })
     if (!data.onboarded) throw redirect({ to: '/onboarding' })
     return { me: data }
   },

@@ -101,7 +101,9 @@ export const connectionRoutes = new Elysia().use(authed)
 
   .get('/conversations/:id/messages', async ({ user, params, status }) => {
     if (!(await myConversation(user.id, params.id))) return status(404, { error: 'not_found' })
-    return { messages: await db.select().from(messages).where(eq(messages.conversationId, params.id)).orderBy(messages.createdAt).limit(200) }
+    // The newest 200, oldest first. (Ordering ascending with a limit would stop new messages showing after 200.)
+    const latest = await db.select().from(messages).where(eq(messages.conversationId, params.id)).orderBy(desc(messages.createdAt)).limit(200)
+    return { messages: latest.reverse() }
   })
   // I opened this conversation: everything in it so far is read.
   .post('/conversations/:id/read', async ({ user, params, status }) => {
@@ -142,6 +144,7 @@ export const connectionRoutes = new Elysia().use(authed)
     if (await isBlockedBetween(row.c.userAId, row.c.userBId)) return status(404, { error: 'not_found' })
     if ((await pairRequest(row.c.intent, row.c.userAId, row.c.userBId))?.status === 'declined') return status(403, { error: 'conversation_closed' })
     if (row.m.meetupStatus !== 'pending') return status(409, { error: 'already_resolved' })
+    if (row.m.meetupWhen && row.m.meetupWhen < new Date()) return status(409, { error: 'expired' })
     const [msg] = await db.update(messages).set({ meetupStatus: body.status }).where(eq(messages.id, params.id)).returning()
     bus.publish(topics.user(row.m.senderId), { type: 'meetup.updated', conversationId: row.c.id, message: msg })
     return { message: msg }
