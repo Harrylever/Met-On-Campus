@@ -8,10 +8,11 @@ export function Mark({ className = 'size-7' }: { className?: string }) {
     </svg>
   )
 }
+// A little smaller on phones so the header (logo, button, menu) fits one line down to 380px.
 export function Brand() {
   return (
-    <span className="inline-flex items-center gap-2.5 whitespace-nowrap font-display text-xl font-bold tracking-tight">
-      <Mark className="h-6 w-auto" />Met On Campus
+    <span className="inline-flex items-center gap-2 whitespace-nowrap font-display text-lg font-bold tracking-tight min-[432px]:gap-2.5 min-[432px]:text-xl">
+      <Mark className="h-5 w-auto min-[432px]:h-6" />Met On Campus
     </span>
   )
 }

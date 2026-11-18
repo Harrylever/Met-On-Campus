@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { MoonIcon, SunIcon, useTheme } from './ThemeToggle'
 
-export function MobileMenu({ links }: { links: { href: string; label: string }[] }) {
+export function MobileMenu({ links, appUrl }: { links: { href: string; label: string }[]; appUrl: string }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const path = usePathname()
@@ -30,6 +30,8 @@ export function MobileMenu({ links }: { links: { href: string; label: string }[]
       </button>
       {open && (
         <nav id="mobile-nav" aria-label="Menu" className="absolute right-0 top-12 w-56 rounded-2xl border border-line bg-surface p-2 shadow-lg">
+          {/* On the narrowest phones the header has no room for this button, so it lives here. */}
+          <a href={appUrl} className="mb-1 flex h-11 items-center justify-center rounded-xl bg-ink text-[15px] font-semibold text-canvas min-[380px]:hidden">Open the app</a>
           {links.map((l) => <Link key={l.href} href={l.href} className="block rounded-xl px-4 py-3 text-[15px] font-medium hover:bg-subtle">{l.label}</Link>)}
           <button type="button" onClick={toggle} className="mt-1 flex w-full items-center justify-between rounded-xl border-t border-line px-4 py-3 text-left text-[15px] font-medium hover:bg-subtle">
             {theme === 'dark' ? 'Light mode' : 'Dark mode'}

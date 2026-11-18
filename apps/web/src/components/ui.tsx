@@ -22,18 +22,20 @@ export function VerifiedPill({ campus }: { campus: string }) {
   )
 }
 
-export function IntentTabs({ value, onChange, options, counts, alerts, marks }: {
+export function IntentTabs({ value, onChange, options, counts, alerts, marks, label = 'Mode' }: {
   value: Intent; onChange: (i: Intent) => void
   options: { id: Intent; label: string }[]; counts?: Partial<Record<Intent, number>>
   /** Things waiting on you in each mode (unread chats, unanswered invites). Shown as a filled pill. */
   alerts?: Partial<Record<Intent, number>>
   /** A small dot for a mode with something unsaved. */
   marks?: Partial<Record<Intent, boolean>>
+  /** What the group of buttons is, for screen readers. */
+  label?: string
 }) {
   const n = options.length
   const index = options.findIndex((o) => o.id === value)
   return (
-    <div role="group" className="relative grid rounded-full bg-subtle p-1" style={{ gridTemplateColumns: `repeat(${Math.max(n, 1)}, minmax(0, 1fr))` }}>
+    <div role="group" aria-label={label} className="relative grid rounded-full bg-subtle p-1" style={{ gridTemplateColumns: `repeat(${Math.max(n, 1)}, minmax(0, 1fr))` }}>
       {/* One shared pill slides to the active tab. Its position is derived from props, so the first paint is already
           in place (no slide on load). data-intent gives it the active mode's accent ring. */}
       {index >= 0 && (

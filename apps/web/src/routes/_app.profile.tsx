@@ -64,6 +64,7 @@ function Profile() {
         <DepartmentRequest />
         <button className="btn" disabled={saveBasics.isPending || (name !== me.user.name && !validPersonName(name))} onClick={() => saveBasics.mutate()}>{saveBasics.isSuccess && !basicsDirty ? 'Saved' : 'Save details'}</button>
         {basicsDirty && <p className="text-sm text-ink-2" role="status">You have unsaved changes to your details.</p>}
+        <span className="sr-only" role="status" aria-live="polite">{saveBasics.isSuccess && !basicsDirty ? 'Details saved' : ''}</span>
         {saveBasics.isError && <p role="alert" className="text-sm text-danger">Could not save. Use letters only for your name, then try again.</p>}
       </section>
 
@@ -187,6 +188,7 @@ function ModeForm({ mode, profile, meta, name, onSaved, onDirty }: { mode: Inten
       )}
       {save.isError && <p role="alert" className="text-sm text-danger">Could not save. Check the fields and try again.</p>}
       {isDirty && <p className="text-sm text-ink-2" role="status">You have unsaved changes to your {mode} profile.</p>}
+      <span className="sr-only" role="status" aria-live="polite">{save.isSuccess && !isDirty ? `${mode} profile saved` : ''}</span>
       <button className="btn btn-i w-full" disabled={save.isPending || usuallyFree.length > MAX_FREE} onClick={() => save.mutate()}>{save.isSuccess && !isDirty ? 'Saved' : `Save ${mode} profile`}</button>
     </section>
   )

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '~/lib/api'
 
@@ -12,6 +12,15 @@ const wait = (s: number) => (s <= 90 ? `${s} second${s === 1 ? '' : 's'}` : `abo
 export function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
+  const head = useRef<HTMLHeadingElement>(null)
+  const opener = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
+  // The button that opens this is replaced by the warning: focus moves to it, and back when it is closed.
+  useEffect(() => {
+    if (open) head.current?.focus()
+    else if (wasOpen.current) opener.current?.focus()
+    wasOpen.current = open
+  }, [open])
   const [sent, setSent] = useState(false)
   const [code, setCode] = useState('')
   const [word, setWord] = useState('')
@@ -54,13 +63,13 @@ export function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
       <section className="card space-y-2" aria-labelledby="delete-heading">
         <h2 id="delete-heading" className="text-[17px] font-semibold">Delete your account</h2>
         <p className="text-sm text-ink-2">Permanently remove your profiles, photos and messages. This cannot be undone.</p>
-        <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>Delete my account…</button>
+        <button ref={opener} type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>Delete my account…</button>
       </section>
     )
   }
   return (
     <section className="card space-y-4 border-danger" aria-labelledby="delete-heading">
-      <h2 id="delete-heading" className="text-[17px] font-semibold">Delete your account</h2>
+      <h2 ref={head} tabIndex={-1} id="delete-heading" className="text-[17px] font-semibold outline-none">Delete your account</h2>
       <div className="space-y-2 text-sm">
         <p className="font-semibold">This is permanent and cannot be undone.</p>
         <p><b>We delete:</b> your profiles and photos, your chats and the messages in them (including the other person&apos;s side of those chats), your invitations, and your sign-in. Rooms you host are cancelled and the people in them are told.</p>

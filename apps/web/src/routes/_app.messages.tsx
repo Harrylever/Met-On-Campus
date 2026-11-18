@@ -71,8 +71,17 @@ function Messages() {
   const [sendError, setSendError] = useState<string | null>(null)
   const [reporting, setReporting] = useState<string | null>(null) // the message whose report menu is open
   const bottom = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const draftBox = useRef<HTMLInputElement>(null)
+  const wasComposing = useRef(false)
   // A draft belongs to one conversation: switching must never carry it to someone else.
   useEffect(() => { setDraft(''); setComposing(false); setSendError(null); setReporting(null) }, [current?.id])
+  // Opening the meetup panel replaces the message box: focus follows it there and back.
+  useEffect(() => {
+    if (composing) panel.current?.focus()
+    else if (wasComposing.current) draftBox.current?.focus()
+    wasComposing.current = composing
+  }, [composing])
   // Show the newest message when a chat opens and when one arrives.
   const count = msgs.data?.messages.length ?? 0
   useEffect(() => { if (count > 0) bottom.current?.scrollIntoView({ block: 'nearest' }) }, [current?.id, count])
@@ -100,6 +109,7 @@ function Messages() {
   const enabled = INTENTS.filter((i) => me.profiles.some((p) => p.intent === i.id && p.enabled))
   return (
     <div data-intent={intent} className="flex flex-col gap-4">
+      <h1 className="sr-only">Messages</h1>
       <IntentTabs value={intent} onChange={(i) => { setIntent(i); setComposing(false) }} options={enabled} alerts={unreadAll.data?.byIntent} />
       <p className="rounded-[10px] bg-(--i-bg) p-3 text-[13px] text-ink">{NOTE[intent]}</p>
 
@@ -141,13 +151,13 @@ function Messages() {
                     <div className="flex items-center gap-1">
                       <span className={`rounded-2xl border px-3 py-2 ${mine ? 'border-(--i-ink) bg-(--i-ink) text-white' : 'border-(--i-line) bg-surface'}`}>{m.body}</span>
                       {!mine && reporting !== m.id && (
-                        <button type="button" onClick={() => setReporting(m.id)} aria-label="Report this message" title="Report this message"
+                        <button type="button" data-report={m.id} onClick={() => setReporting(m.id)} aria-label="Report this message" title="Report this message"
                           className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-subtle hover:text-ink">
                           <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
                         </button>
                       )}
                     </div>
-                    {!mine && reporting === m.id && <SafetyMenu defaultOpen onClose={() => setReporting(null)} userId={current.with.id} name={current.with.name} intent={intent} messageId={m.id} label="Report this message" />}
+                    {!mine && reporting === m.id && <SafetyMenu defaultOpen onClose={() => { setReporting(null); setTimeout(() => document.querySelector<HTMLElement>(`[data-report="${m.id}"]`)?.focus(), 0) }} userId={current.with.id} name={current.with.name} intent={intent} messageId={m.id} label="Report this message" />}
                   </li>
                 </Fragment>
               )
@@ -158,7 +168,7 @@ function Messages() {
                   <li className="rounded-[12px] border border-(--i-line) bg-(--i-bg) p-3">
                     <span className="label text-(--i-ink)">Meetup proposal</span>
                     <p className="font-semibold">{m.meetupWhere} · {m.meetupWhen && formatWhen(m.meetupWhen)}</p>
-                    {m.meetupStatus === 'confirmed' && <p className="text-sm font-medium text-live">Confirmed</p>}
+                    {m.meetupStatus === 'confirmed' && <p className="text-sm font-medium text-live-ink">Confirmed</p>}
                     {m.meetupStatus === 'declined' && <p className="text-sm text-ink-2">Declined</p>}
                     {expired && <p className="text-sm text-ink-2">That time has passed. Propose a new one.</p>}
                     {m.meetupStatus === 'pending' && !expired && (mine ? <p className="text-sm text-ink-2">Waiting for {current.with.name}</p> :
@@ -172,7 +182,7 @@ function Messages() {
           {closed ? <p className="rounded-[10px] bg-subtle p-3 text-sm text-ink-2">This conversation is closed.</p>
           : waitingOnThem ? <p className="rounded-[10px] bg-subtle p-3 text-sm text-ink-2">Waiting for {current.with.name} to reply. You can write more once they accept.</p>
           : composing ? (
-            <div className="space-y-3 rounded-[12px] border border-line p-3">
+            <div ref={panel} tabIndex={-1} role="group" aria-label="Propose a meetup" className="space-y-3 rounded-[12px] border border-line p-3 outline-none">
               <span className="label">Propose a public campus spot</span>
               <div className="flex flex-wrap gap-2">{spots.data?.spots.map((s) => <button key={s} className="chip" aria-pressed={spot === s} onClick={() => setSpot(s)}>{s}</button>)}</div>
               <input type="datetime-local" className="input" aria-label="When" value={when} onChange={(e) => setWhen(e.target.value)} />
@@ -180,7 +190,7 @@ function Messages() {
             </div>
           ) : (
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); draft.trim() && sendText.mutate() }}>
-              <input className="input" placeholder={`Message ${current.with.name}`} value={draft} onChange={(e) => setDraft(e.target.value)} />
+              <input ref={draftBox} className="input" aria-label={`Message ${current.with.name}`} placeholder={`Message ${current.with.name}`} value={draft} onChange={(e) => setDraft(e.target.value)} />
               <button className="btn btn-i" disabled={!draft.trim()}>Send</button>
               <button type="button" className="btn btn-ghost" onClick={() => setComposing(true)}>Meet</button>
             </form>

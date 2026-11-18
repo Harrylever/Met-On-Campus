@@ -62,7 +62,7 @@ function Rooms() {
         <h1 className="text-[28px] font-bold leading-[34px]">Live rooms on campus</h1>
         <p className="text-ink-2">Sessions at public campus spots. Request a spot and the host approves it.</p>
       </header>
-      <IntentTabs value={kind} onChange={(i) => i !== 'romance' && setKind(i)} options={KINDS} />
+      <IntentTabs value={kind} onChange={(i) => i !== 'romance' && setKind(i)} options={KINDS} label="Kind of room" />
       <button className={creating ? 'btn btn-ghost' : 'btn btn-i'} onClick={() => setCreating(!creating)}>{creating ? 'Cancel' : kind === 'study' ? 'Host a Study Room' : 'Host a Hangout'}</button>
       {creating && <RoomForm intent={kind} onDone={() => { setCreating(false); refresh() }} />}
       {problem && <p role="alert" className="card text-danger">{problem}</p>}
@@ -92,10 +92,10 @@ function Rooms() {
                         {confirming === r.id ? (
                           <div className="space-y-2 rounded-[10px] border border-line p-3 text-sm">
                             <p>Cancel this room? Everyone with a place, and everyone waiting, is told.</p>
-                            <div className="flex gap-2"><button className="btn btn-danger h-10 px-3" disabled={cancelRoom.isPending} onClick={() => cancelRoom.mutate(r.id)}>{cancelRoom.isPending ? 'Cancelling…' : 'Cancel the room'}</button><button className="btn btn-ghost h-10 px-3" onClick={() => setConfirming(null)}>Keep it</button></div>
+                            <div className="flex gap-2"><button className="btn btn-danger h-10 px-3" disabled={cancelRoom.isPending} onClick={() => cancelRoom.mutate(r.id)}>{cancelRoom.isPending ? 'Cancelling…' : 'Cancel the room'}</button><button autoFocus className="btn btn-ghost h-10 px-3" onClick={() => { setConfirming(null); setTimeout(() => document.querySelector<HTMLElement>(`[data-cancel-room="${r.id}"]`)?.focus(), 0) }}>Keep it</button></div>
                           </div>
                         ) : (
-                          <div className="flex gap-2"><button className="btn btn-ghost h-10 px-3" onClick={() => { setEditing(editing === r.id ? null : r.id); setCreating(false) }}>{editing === r.id ? 'Close editor' : 'Edit'}</button><button className="btn btn-ghost h-10 px-3" onClick={() => setConfirming(r.id)}>Cancel room</button></div>
+                          <div className="flex gap-2"><button aria-expanded={editing === r.id} className="btn btn-ghost h-10 px-3" onClick={() => { setEditing(editing === r.id ? null : r.id); setCreating(false) }}>{editing === r.id ? 'Close editor' : 'Edit'}</button><button data-cancel-room={r.id} className="btn btn-ghost h-10 px-3" onClick={() => setConfirming(r.id)}>Cancel room</button></div>
                         )}
                         {editing === r.id && <RoomForm intent={kind} room={r} onDone={() => { setEditing(null); refresh() }} />}
                       </div>)
@@ -134,7 +134,7 @@ function HostRequests({ roomId, full, onError }: { roomId: string; full: boolean
           <button className="btn btn-ghost h-10 px-3" disabled={decide.isPending} onClick={() => decide.mutate({ userId: u.id, decision: 'declined' })}>Decline</button>
         </li>
       ))}
-      {full && <li className="text-[13px] text-warn">Room is full. Decline or raise capacity by creating a new room.</li>}
+      {full && <li className="text-[13px] text-warn-ink">Room is full. Decline or raise capacity by creating a new room.</li>}
     </ul>
   )
 }

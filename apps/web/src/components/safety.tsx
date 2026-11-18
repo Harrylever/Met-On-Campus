@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, type Intent } from '~/lib/api'
 
@@ -17,6 +17,10 @@ export function SafetyMenu({ userId, name, intent, messageId, label = 'Safety', 
   const [alsoBlock, setAlsoBlock] = useState(true)
   const qc = useQueryClient()
   const refresh = () => qc.invalidateQueries()
+  // The trigger button is replaced by the menu: keep keyboard and screen reader focus with it.
+  const box = useRef<HTMLDivElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
 
   const block = useMutation({ mutationFn: () => unwrap(api.blocks.post({ userId })), onSuccess: () => { setOpen(false); onClose?.(); refresh() } })
   const report = useMutation({
@@ -25,10 +29,16 @@ export function SafetyMenu({ userId, name, intent, messageId, label = 'Safety', 
   })
   const reset = () => { setOpen(false); setMode('menu'); report.reset(); setDetails(''); onClose?.() }
 
-  if (!open) return <button type="button" className="text-[13px] text-ink-2 underline underline-offset-2" aria-expanded={false} onClick={() => setOpen(true)}>{label}</button>
+  useEffect(() => {
+    if (open) box.current?.querySelector<HTMLElement>('button, input')?.focus()
+    else if (wasOpen.current) trigger.current?.focus()
+    wasOpen.current = open
+  }, [open, mode, report.isSuccess])
+
+  if (!open) return <button ref={trigger} type="button" className="text-[13px] text-ink-2 underline underline-offset-2" aria-expanded={false} onClick={() => setOpen(true)}>{label}</button>
 
   return (
-    <div role="group" aria-label={`Safety options for ${name}`} className="space-y-3 rounded-[12px] border border-line bg-surface p-3 text-left text-sm text-ink">
+    <div ref={box} role="group" aria-label={`Safety options for ${name}`} className="space-y-3 rounded-[12px] border border-line bg-surface p-3 text-left text-sm text-ink">
       {report.isSuccess ? (
         <>
           <p className="font-semibold">Thanks. We received your report.</p>

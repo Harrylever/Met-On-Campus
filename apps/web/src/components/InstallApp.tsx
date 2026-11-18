@@ -40,9 +40,9 @@ export function InstallBanner() {
   const [gone, setGone] = useState(hidden)
   const [showSteps, setShowSteps] = useState(false)
   if (installed || gone || !(canPrompt || ios)) return null
-  const dismiss = () => { setGone(true); try { localStorage.setItem(KEY, String(Date.now())) } catch { /* shown again next visit */ } }
+  const dismiss = () => { setGone(true); setTimeout(() => document.getElementById('main')?.focus({ preventScroll: true }), 0); try { localStorage.setItem(KEY, String(Date.now())) } catch { /* shown again next visit */ } }
   return (
-    <div role="region" aria-label="Install the app" className="mx-4 mt-4 space-y-2 rounded-[12px] border border-line bg-subtle p-3 text-sm">
+    <div role="region" aria-label="Install the app" className="mb-4 space-y-2 rounded-[12px] border border-line bg-subtle p-3 text-sm">
       <div className="flex items-center justify-between gap-3">
         <span><b>Get the app.</b> Open it from your home screen and get notified.</span>
         <div className="flex shrink-0 gap-2">

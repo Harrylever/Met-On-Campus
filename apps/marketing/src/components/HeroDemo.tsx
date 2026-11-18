@@ -41,7 +41,7 @@ export function HeroDemo() {
         </div>
         <div className="space-y-3 p-5">
           <div>
-            <h3 className="text-xl">{p.name} <span className="font-medium text-ink-2">{p.line}</span></h3>
+            <p className="font-display text-xl font-semibold tracking-tight">{p.name} <span className="font-medium text-ink-2">{p.line}</span></p>
             <p className="text-sm text-ink-2">{p.where}</p>
           </div>
           <div className="rounded-xl bg-(--i-bg) p-3 ring-1 ring-(--i-line)">
