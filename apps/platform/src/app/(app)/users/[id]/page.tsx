@@ -48,6 +48,7 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
           <Row k="Last opened the app" v={d.rewards.lastActiveDay ?? 'never'} />
           <Row k="Invited by" v={d.rewards.referredBy ? <Link href={`/users/${d.rewards.referredBy.id}`} className="underline underline-offset-2">{d.rewards.referredBy.name}</Link> : 'nobody'} />
           <Row k="People they invited" v={d.rewards.invited} />
+          <Row k="On the weekly leaderboard" v={d.rewards.onLeaderboard ? 'Yes' : 'No'} />
         </dl>
         {d.rewards.ledger.length === 0 ? <p className="text-sm text-ink-2">Nothing earned yet.</p> : (
           <ul className="divide-y divide-line text-sm">

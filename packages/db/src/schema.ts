@@ -246,6 +246,9 @@ export const userProgress = pgTable('user_progress', {
   streakBest: integer('streak_best').notNull().default(0),
   lastActiveDay: date('last_active_day', { mode: 'string' }),
   lastRestOn: date('last_rest_on', { mode: 'string' }), // the day a free "rest day" last kept the streak alive (one a week)
+  // The campus leaderboard is opt-in and off by default: only students who turned it on appear on it (and only they can see it).
+  leaderboardOptIn: boolean('leaderboard_opt_in').notNull().default(false),
+  leaderboardAt: timestamp('leaderboard_at', { withTimezone: true }), // when they last joined
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

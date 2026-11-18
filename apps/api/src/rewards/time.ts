@@ -9,3 +9,5 @@ export const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) -
 export const addDays = (day: string, n: number) => new Date(Date.parse(day) + n * 86_400_000).toISOString().slice(0, 10)
 export const monthStart = (month: string) => `${month}-01`
 export const nextMonthStart = (month: string) => { const [y, m] = month.split('-').map(Number) as [number, number]; return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01` }
+/** The Monday of the Nigerian week that contains `day` (weeks run Monday to Sunday). */
+export const weekStart = (day: string) => addDays(day, -((new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7))

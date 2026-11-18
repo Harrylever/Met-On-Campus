@@ -145,7 +145,7 @@ export const adminRoutes = new Elysia({ prefix: '/admin' }).use(adminAuthed)
     const [prog] = await db.select().from(userProgress).where(eq(userProgress.userId, u.id)).limit(1)
     const [referrer] = u.referredBy ? await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, u.referredBy)).limit(1) : []
     const [invitedCount] = await db.select({ n: count() }).from(users).where(eq(users.referredBy, u.id))
-    const rewards = { points: prog?.pointsTotal ?? 0, streakCurrent: prog?.streakCurrent ?? 0, streakBest: prog?.streakBest ?? 0, lastActiveDay: prog?.lastActiveDay ?? null, referredBy: referrer ?? null, invited: invitedCount?.n ?? 0, ledger: await ledgerOf(u.id), badges: await badgesForStaff(u.id) }
+    const rewards = { points: prog?.pointsTotal ?? 0, streakCurrent: prog?.streakCurrent ?? 0, streakBest: prog?.streakBest ?? 0, lastActiveDay: prog?.lastActiveDay ?? null, referredBy: referrer ?? null, invited: invitedCount?.n ?? 0, ledger: await ledgerOf(u.id), badges: await badgesForStaff(u.id), onLeaderboard: !!prog?.leaderboardOptIn }
     // Staff see counts and metadata about conversations, never their content. Only report snapshots carry text.
     return {
       rewards,

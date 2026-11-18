@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '~/lib/api'
 import { Skeleton } from '~/components/Skeleton'
 
@@ -62,6 +62,8 @@ function Progress() {
             </ul>
           )}
         </section>
+
+        <LeaderboardCard />
 
         <BadgeShelf today={p.today} />
 
@@ -153,6 +155,51 @@ function BadgeShelf({ today }: { today: string }) {
         </div>
       ))}
       <p className="text-xs text-ink-2">Badges are just for fun: they do not give points. If a badge was earned unfairly, staff can take it back.</p>
+    </section>
+  )
+}
+
+// The weekly leaderboard for this campus. Off until the student joins, and only people who joined can see it.
+function LeaderboardCard() {
+  const qc = useQueryClient()
+  const q = useQuery({ queryKey: ['leaderboard'], queryFn: () => unwrap(api.me.leaderboard.get()) })
+  const set = useMutation({ mutationFn: (optIn: boolean) => unwrap(api.me.leaderboard.put({ optIn })), onSuccess: (r) => qc.setQueryData(['leaderboard'], r) })
+  const b = q.data
+  return (
+    <section className="card space-y-3" aria-labelledby="board-heading">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="board-heading" className="text-[17px] font-semibold">Weekly leaderboard</h2>
+        {b?.optedIn && <p className="text-sm text-ink-2">{b.resetsInDays === 1 ? 'Resets tomorrow' : `Resets in ${b.resetsInDays} days`}</p>}
+      </div>
+      {q.isError && <p role="alert" className="text-sm text-danger">Could not load the leaderboard. Try again in a moment.</p>}
+      {!b && !q.isError && <div aria-hidden="true"><Skeleton className="h-24 w-full !rounded-[12px]" /></div>}
+      {b && !b.optedIn && (
+        <>
+          <p className="text-sm text-ink-2">See who has earned the most points on your campus this week. It starts fresh every Monday. It is off until you join. If you join, other students at your university who have joined can see your first name, your level and your points this week, and nothing else. You can leave at any time.</p>
+          <button type="button" className="btn" disabled={set.isPending} onClick={() => set.mutate(true)}>{set.isPending ? 'Joining…' : 'Join the leaderboard'}</button>
+        </>
+      )}
+      {b?.optedIn && (
+        <>
+          {b.entries.length === 0
+            ? <p className="text-sm text-ink-2">Nobody has points this week yet. Open the app, connect with someone or join a room to get on the board.</p>
+            : (
+              <ol className="divide-y divide-line text-sm" aria-label="This week's top students">
+                {b.entries.map((e, i) => (
+                  <li key={e.rank} className={`flex items-baseline gap-3 py-2 ${e.you ? 'font-semibold' : ''} ${i > 0 && e.rank - b.entries[i - 1]!.rank > 1 ? 'border-t-2 border-dashed border-line' : ''}`}>
+                    <span className="w-6 shrink-0 text-ink-2">{e.rank}</span>
+                    <span className="min-w-0 flex-1 truncate">{e.name}<span className="font-normal text-ink-2"> · {e.level} level</span>{e.you && <span className="ml-2 rounded-full bg-ink px-2 py-0.5 text-[11px] font-semibold text-white">You</span>}</span>
+                    <span className="shrink-0">{e.points}<span className="sr-only"> points</span></span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          {!b.me && <p className="text-sm text-ink-2">You have no points yet this week, so you are not on the board.</p>}
+          <p className="text-xs text-ink-2">{b.joined} {b.joined === 1 ? 'student has' : 'students have'} joined at your campus. Others see only your first name, level and points. Staff can remove points that were earned unfairly.</p>
+          <button type="button" className="btn btn-ghost" disabled={set.isPending} onClick={() => set.mutate(false)}>{set.isPending ? 'Leaving…' : 'Leave the leaderboard'}</button>
+        </>
+      )}
+      {set.isError && <p role="alert" className="text-sm text-danger">That did not save. Check your connection and try again.</p>}
     </section>
   )
 }
