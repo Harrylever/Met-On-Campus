@@ -5,6 +5,7 @@ import {
   moderationActions, reports, roomMembers, rooms, sessions, users,
 } from '@moc/db'
 import { db, redis } from '../context'
+import { deleteAccount } from '../account'
 import { recentRequests } from '../metrics'
 import * as presence from '../presence'
 import { adminAuthed, audit } from './session'
@@ -74,16 +75,18 @@ export const adminRoutes = new Elysia({ prefix: '/admin' }).use(adminAuthed)
   .get('/reports', async ({ query }) => {
     const status = query.status ?? 'open'
     const rows = await db.select().from(reports).where(status === 'all' ? undefined : eq(reports.status, status)).orderBy(desc(reports.createdAt)).limit(query.limit ?? 50).offset(query.offset ?? 0)
-    const ids = [...new Set(rows.flatMap((r) => [r.reporterId, r.reportedId]))]
+    // Either side may have deleted their account since: those links are empty, and the report stays.
+    const ids = [...new Set(rows.flatMap((r) => [r.reporterId, r.reportedId]).filter((x): x is string => !!x))]
     const people = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : []
     const against = ids.length ? await db.select({ id: reports.reportedId, n: count() }).from(reports).where(inArray(reports.reportedId, ids)).groupBy(reports.reportedId) : []
-    const by = (id: string) => people.find((p) => p.id === id)
+    const by = (id: string | null) => (id ? people.find((p) => p.id === id) : undefined)
     return {
       reports: rows.map((r) => ({
         id: r.id, reason: r.reason, details: r.details, intent: r.intent, status: r.status, createdAt: r.createdAt, reviewedAt: r.reviewedAt,
         messageSnapshot: r.messageSnapshot,
         reporter: by(r.reporterId) ? person(by(r.reporterId)!) : null,
         reported: by(r.reportedId) ? { ...person(by(r.reportedId)!), reportsAgainst: against.find((a) => a.id === r.reportedId)?.n ?? 0 } : null,
+        reporterDeleted: !r.reporterId, reportedDeleted: !r.reportedId, reportedLabel: r.reportedLabel,
       })),
     }
   }, { query: t.Object({ status: t.Optional(t.Union([t.Literal('open'), t.Literal('reviewed'), t.Literal('dismissed'), t.Literal('all')])), limit: t.Optional(t.Numeric({ maximum: 100 })), offset: t.Optional(t.Numeric()) }) })
@@ -98,7 +101,8 @@ export const adminRoutes = new Elysia({ prefix: '/admin' }).use(adminAuthed)
       .where(and(eq(reports.id, report.id), eq(reports.status, 'open'))).returning()
     if (!claimed) return status(409, { error: 'already_resolved' })
     await db.insert(moderationActions).values({ adminId: admin.id, userId: report.reportedId, reportId: report.id, action: body.action, note: body.note.trim() })
-    if (body.action === 'suspend') await suspendUser(report.reportedId, body.note.trim())
+    // If the reported person has since deleted their account there is nobody left to suspend; the report is still closed on record.
+    if (body.action === 'suspend' && report.reportedId) await suspendUser(report.reportedId, body.note.trim())
     await audit(admin.id, `report.${body.action}`, { targetType: 'report', targetId: report.id, meta: { userId: report.reportedId }, ip })
     return { ok: true }
   }, { params: t.Object({ id: uuid }), body: t.Object({ action: t.Union([t.Literal('dismiss'), t.Literal('warn'), t.Literal('suspend')]), note: t.String({ maxLength: 1000 }) }) })
@@ -149,6 +153,17 @@ export const adminRoutes = new Elysia({ prefix: '/admin' }).use(adminAuthed)
       moderation: actions.map((a) => ({ id: a.id, action: a.action, note: a.note, createdAt: a.createdAt, reportId: a.reportId })),
     }
   }, { params: t.Object({ id: uuid }) })
+
+  // Delete an account on a student's request (for example by email). Typing their email guards against the wrong person;
+  // the written reason goes in the audit log, which never stores the email or name.
+  .post('/users/:id/delete', async ({ admin, params, body, ip, status }) => {
+    const [u] = await db.select().from(users).where(eq(users.id, params.id)).limit(1)
+    if (!u) return status(404, { error: 'not_found' })
+    if (body.confirmEmail.trim().toLowerCase() !== u.email.toLowerCase()) return status(422, { error: 'confirm_mismatch' })
+    if (body.reason.trim().length < 5) return status(422, { error: 'reason_required' })
+    await deleteAccount(u.id, { kind: 'staff', adminId: admin.id, reason: body.reason.trim(), ip })
+    return { ok: true }
+  }, { params: t.Object({ id: uuid }), body: t.Object({ confirmEmail: t.String({ maxLength: 254 }), reason: t.String({ maxLength: 300 }) }) })
 
   .post('/users/:id/suspend', async ({ admin, params, body, ip, status }) => {
     if (body.note.trim().length < 5) return status(422, { error: 'note_required' })

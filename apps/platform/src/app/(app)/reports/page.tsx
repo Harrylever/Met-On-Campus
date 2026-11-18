@@ -4,7 +4,7 @@ import { ago, title, when } from '~/lib/format'
 import { ResolveForm } from './ResolveForm'
 
 type P = { id: string; name: string; department: string; level: number; university: string; status: string }
-type Report = { id: string; reason: string; details: string; intent: string | null; status: string; createdAt: string; reviewedAt: string | null; messageSnapshot: string | null; reporter: P | null; reported: (P & { reportsAgainst: number }) | null }
+type Report = { id: string; reason: string; details: string; intent: string | null; status: string; createdAt: string; reviewedAt: string | null; messageSnapshot: string | null; reporter: P | null; reported: (P & { reportsAgainst: number }) | null; reporterDeleted: boolean; reportedDeleted: boolean; reportedLabel: string | null }
 const TABS = [['open', 'Open'], ['reviewed', 'Actioned'], ['dismissed', 'Dismissed']] as const
 
 export default async function Reports({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
@@ -29,13 +29,13 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
               <span className="ml-auto text-xs text-ink-2" title={when(r.createdAt)}>{ago(r.createdAt)}</span>
             </div>
             <p className="text-sm">
-              <b>{r.reporter?.name ?? 'Unknown'}</b> <span className="text-ink-2">({r.reporter?.department} {r.reporter?.level}L)</span> reported{' '}
-              {r.reported ? <Link className="font-semibold underline underline-offset-2" href={`/users/${r.reported.id}`}>{r.reported.name}</Link> : 'a deleted account'}{' '}
+              {r.reporter ? <><b>{r.reporter.name}</b> <span className="text-ink-2">({r.reporter.department} {r.reporter.level}L)</span></> : <b>{r.reporterDeleted ? 'A deleted account' : 'Unknown'}</b>} reported{' '}
+              {r.reported ? <Link className="font-semibold underline underline-offset-2" href={`/users/${r.reported.id}`}>{r.reported.name}</Link> : <b>a deleted account{r.reportedLabel ? ` (${r.reportedLabel})` : ''}</b>}{' '}
               <span className="text-ink-2">{r.reported && `(${r.reported.department} ${r.reported.level}L, ${r.reported.university})`}</span>
             </p>
             {r.messageSnapshot && <blockquote className="rounded-lg border-l-2 border-line bg-subtle p-3 text-sm"><span className="label mb-1 block">Reported message</span>{r.messageSnapshot}</blockquote>}
             {r.details && <p className="text-sm text-ink-2"><span className="label mr-2">Reporter says</span>{r.details}</p>}
-            {r.status === 'open' && r.reported ? <ResolveForm reportId={r.id} name={r.reported.name} />
+            {r.status === 'open' && (r.reported || r.reportedDeleted) ? <ResolveForm reportId={r.id} name={r.reported?.name ?? r.reportedLabel ?? 'a deleted account'} deleted={!r.reported} />
               : <p className="text-xs text-ink-2">{r.status === 'dismissed' ? 'Dismissed' : 'Actioned'} {r.reviewedAt && when(r.reviewedAt)}</p>}
           </li>
         ))}

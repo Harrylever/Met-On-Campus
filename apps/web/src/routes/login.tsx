@@ -10,8 +10,9 @@ type ReturnTo = (typeof RETURN_TO)[number]
 
 export const Route = createFileRoute("/login")({
   ssr: false,
-  validateSearch: (s: Record<string, unknown>): { redirect?: ReturnTo } => ({
+  validateSearch: (s: Record<string, unknown>): { redirect?: ReturnTo; deleted?: true } => ({
     redirect: RETURN_TO.find((p) => p === s.redirect),
+    deleted: s.deleted === 1 || s.deleted === "1" || s.deleted === true ? true : undefined,
   }),
   component: Login,
 })
@@ -24,7 +25,7 @@ const wait = (seconds: number) =>
 
 function Login() {
   const nav = useNavigate()
-  const { redirect } = Route.useSearch()
+  const { redirect, deleted } = Route.useSearch()
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
   const [step, setStep] = useState<"email" | "code">("email")
@@ -95,6 +96,11 @@ function Login() {
             if (okEmail) send.mutate()
           }}
         >
+          {deleted && (
+            <p role="status" className="rounded-[12px] border border-line bg-subtle p-3 text-sm">
+              Your account has been deleted. Your profiles, photos and messages are gone. You are welcome to join again any time, as a new account.
+            </p>
+          )}
           <div className="space-y-2">
             <h1 className="text-[28px] font-bold leading-[34px]">
               Verify your campus email

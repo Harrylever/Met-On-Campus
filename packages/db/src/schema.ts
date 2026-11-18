@@ -136,11 +136,13 @@ export const blocks = pgTable('blocks', {
   createdAt: createdAt(),
 }, (t) => [primaryKey({ columns: [t.blockerId, t.blockedId] }), index('blocks_blocked_idx').on(t.blockedId), check('no_self_block', sql`${t.blockerId} <> ${t.blockedId}`)])
 
-// Reports are kept even if the message is later deleted, so reviewers still see what was reported.
+// Reports are kept even if the message is later deleted, so reviewers still see what was reported, and even if either
+// person later deletes their account (the link to the account is cleared; `reportedLabel` keeps just a name and campus).
 export const reports = pgTable('reports', {
   id: id(),
-  reporterId: uuid('reporter_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  reportedId: uuid('reported_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reporterId: uuid('reporter_id').references(() => users.id, { onDelete: 'set null' }),
+  reportedId: uuid('reported_id').references(() => users.id, { onDelete: 'set null' }),
+  reportedLabel: text('reported_label'), // set when the reported person deletes their account: "Name, campus"
   reason: reportReasonEnum('reason').notNull(),
   details: text('details').notNull().default(''),
   intent: intentEnum('intent'), // which mode it happened in, when known
@@ -255,7 +257,7 @@ export const adminAudit = pgTable('admin_audit', {
 export const moderationActions = pgTable('moderation_actions', {
   id: id(),
   adminId: uuid('admin_id').notNull(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }), // cleared if the account is deleted; the record of the action stays
   reportId: uuid('report_id').references(() => reports.id, { onDelete: 'set null' }),
   action: moderationActionEnum('action').notNull(),
   note: text('note').notNull().default(''),

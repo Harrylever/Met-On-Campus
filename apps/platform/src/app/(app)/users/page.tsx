@@ -4,12 +4,13 @@ import { when } from '~/lib/format'
 
 type U = { id: string; name: string; department: string; level: number; university: string; status: string; emailMasked: string; createdAt: string }
 
-export default async function Users({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
-  const { q = '', status } = await searchParams
+export default async function Users({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; deleted?: string }> }) {
+  const { q = '', status, deleted } = await searchParams
   const qs = new URLSearchParams({ ...(q && { q }), ...(status === 'suspended' && { status }) }).toString()
   const { users } = await adminData<{ users: U[] }>(`/admin/users${qs ? `?${qs}` : ''}`)
   return (
     <>
+      {deleted === '1' && <p role="status" className="card text-sm">The account was deleted. It is recorded in the audit log.</p>}
       <div><h1 className="text-2xl font-bold">Students</h1><p className="text-sm text-ink-2">Search by name, email or ID. Searches and profile views are recorded in the audit log.</p></div>
       <form className="flex flex-wrap gap-2" role="search">
         <input name="q" defaultValue={q} placeholder="Name, email or ID" aria-label="Search students" className="input max-w-sm" />

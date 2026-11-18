@@ -16,6 +16,7 @@ import { adminList } from "./admin/lists"
 import { adminDepartmentRequests } from "./admin/department-requests"
 import { adminPhotos } from "./admin/photos"
 import { photoRoutes } from "./routes/photos"
+import { accountRoutes } from "./routes/account"
 import { departmentRequestRoutes } from "./routes/department-requests"
 import { adminServiceGate } from "./admin/session"
 import { recordRequest } from "./metrics"
@@ -35,6 +36,7 @@ export const app = new Elysia()
   .use(metaRoutes)
   .use(departmentRequestRoutes)
   .use(photoRoutes)
+  .use(accountRoutes)
   .use(presenceRoutes)
   .use(wsRoutes)
   .use(adminAuthRoutes)

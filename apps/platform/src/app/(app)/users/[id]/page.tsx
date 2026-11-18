@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { adminApi } from '~/lib/admin-api'
 import { ago, title, when } from '~/lib/format'
+import { DeleteAccountForm } from './DeleteAccountForm'
 import { SuspensionForm } from './SuspensionForm'
 
 export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
@@ -44,6 +45,7 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
       <section className="card"><h2 className="mb-3 text-lg font-semibold">Moderation history</h2>
         {d.moderation.length === 0 ? <p className="text-sm text-ink-2">No actions taken.</p> : <ul className="space-y-2 text-sm">{d.moderation.map((m: any) => <li key={m.id}><b>{title(m.action)}</b> <span className="text-xs text-ink-2">{when(m.createdAt)}</span><p className="text-ink-2">{m.note}</p></li>)}</ul>}</section>
       <section className="card"><h2 className="mb-3 text-lg font-semibold">{u.status === 'suspended' ? 'Restore account' : 'Suspend account'}</h2><SuspensionForm userId={u.id} name={u.name} suspended={u.status === 'suspended'} /></section>
+      <section className="card"><h2 className="mb-3 text-lg font-semibold">Delete account</h2><DeleteAccountForm userId={u.id} name={u.name} /></section>
     </>
   )
 }

@@ -51,7 +51,7 @@ export default function Terms() {
       <p>To the extent the law allows, we are not responsible for loss or harm that comes from what other users do, from meetings you arrange, or from the app being unavailable. Nothing in these terms limits any responsibility we cannot lawfully limit.</p>
 
       <h2>10. Ending your account</h2>
-      <p>You can stop using the app at any time. To ask us to delete your account, contact us at <Contact />. We can also close accounts that break these terms.</p>
+      <p>You can stop using the app at any time. You can delete your account yourself in the app, which removes your profiles, photos and messages and cannot be undone, or ask us to do it at <Contact />. We keep reports and safety records as described in our <Link href="/privacy">privacy policy</Link>. We can also close accounts that break these terms.</p>
 
       <h2>11. Changes</h2>
       <p>We may update these terms. When we make a significant change, we will tell you in the app or by email. Using the app after a change means you accept it.</p>

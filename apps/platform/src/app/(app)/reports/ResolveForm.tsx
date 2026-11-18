@@ -2,7 +2,7 @@
 import { useActionState, useState } from 'react'
 import { resolveReport } from './actions'
 
-export function ResolveForm({ reportId, name }: { reportId: string; name: string }) {
+export function ResolveForm({ reportId, name, deleted = false }: { reportId: string; name: string; deleted?: boolean }) {
   const [state, action, pending] = useActionState(resolveReport.bind(null, reportId), undefined)
   // Controlled: React 19 resets uncontrolled fields after every action, which would wipe a moderator's reason on a validation error.
   const [choice, setChoice] = useState('')
@@ -13,12 +13,13 @@ export function ResolveForm({ reportId, name }: { reportId: string; name: string
     <form action={action} className="space-y-3 border-t border-line pt-3">
       <fieldset className="flex flex-wrap gap-2">
         <legend className="sr-only">Action for {name}</legend>
-        {[['dismiss', 'Dismiss'], ['warn', 'Record warning'], ['suspend', 'Suspend account']].map(([v, l]) => (
+        {[['dismiss', 'Dismiss'], ['warn', 'Record warning'], ['suspend', 'Suspend account']].filter(([v]) => !(deleted && v === 'suspend')).map(([v, l]) => (
           <label key={v} className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${choice === v ? 'border-ink bg-subtle font-semibold' : 'border-line'}`}>
             <input type="radio" name="action" value={v} checked={choice === v} className="sr-only" onChange={() => setChoice(v)} required />{l}
           </label>
         ))}
       </fieldset>
+      {deleted && <p className="text-xs text-ink-2">This account was deleted, so there is no one to suspend. You can still record how the report was handled.</p>}
       {choice === 'warn' && <p className="text-xs text-ink-2">A warning is recorded on the student&apos;s history. They are not notified yet.</p>}
       {choice && (
         <label className="block text-sm font-semibold">{choice === 'dismiss' ? 'Note (optional)' : 'Reason (required, kept in the audit log)'}

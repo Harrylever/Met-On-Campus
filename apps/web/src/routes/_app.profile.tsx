@@ -7,6 +7,7 @@ import { PROMPT_SUGGESTIONS, createSuggester } from '~/lib/prompts'
 import { deptLabel } from '~/lib/dept'
 import { DepartmentRequest } from '~/components/DepartmentRequest'
 import { PhotoField } from '~/components/PhotoField'
+import { DeleteAccount } from '~/components/DeleteAccount'
 import { looksLikeMatric, validPersonName } from '~/lib/name'
 import { BlockedListSkeleton, LoadingRegion, ProfileFormSkeleton, Skeleton, useSkeleton } from '~/components/Skeleton'
 
@@ -33,8 +34,9 @@ function Profile() {
   const [level, setLevel] = useState(me.user.level)
   const basicsDirty = name !== me.user.name || department !== me.user.department || level !== me.user.level
   const anyDirty = basicsDirty || Object.values(dirty).some(Boolean)
+  const [deleted, setDeleted] = useState(false) // once the account is gone there is nothing to save
   // Leaving with unsaved edits asks first (in-app navigation and closing the tab).
-  useBlocker({ shouldBlockFn: () => !window.confirm('You have unsaved changes. Leave without saving?'), enableBeforeUnload: () => anyDirty, disabled: !anyDirty })
+  useBlocker({ shouldBlockFn: () => !window.confirm('You have unsaved changes. Leave without saving?'), enableBeforeUnload: () => anyDirty && !deleted, disabled: !anyDirty || deleted })
   const saveBasics = useMutation({ mutationFn: () => unwrap(api.me.patch({ name, department, level })), onSuccess: () => router.invalidate() })
 
   return (
@@ -75,6 +77,8 @@ function Profile() {
       <BlockedList />
 
       <button className="btn btn-ghost" onClick={() => logout.mutate()}>Sign out</button>
+
+      <DeleteAccount onDeleted={() => setDeleted(true)} />
     </div>
   )
 }

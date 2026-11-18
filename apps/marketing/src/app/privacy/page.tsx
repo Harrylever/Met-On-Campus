@@ -41,10 +41,12 @@ export default function Privacy() {
       <p>We do not sell your personal data. Some of our providers run servers outside Nigeria, so your data may be processed in other countries.</p>
 
       <h2>How long we keep it</h2>
-      <p>We keep your data while your account is active. When you ask us to delete your account, we delete your profile, messages and photos. If you remove or replace a photo, or we do not approve it, the stored file is deleted. We may keep limited records, such as reports and moderation actions, where needed for safety or to meet legal obligations.</p>
+      <p>We keep your data while your account is active. If you remove or replace a photo, or we do not approve it, the stored file is deleted straight away.</p>
+      <p>When you delete your account, we delete your profiles, photos, invitations and sign-in details, the chats you were part of and the messages in them (including the other person&apos;s side of those chats), and any rooms you host are cancelled. This happens immediately, and cannot be undone.</p>
+      <p>Some records stay, because deleting an account must not erase evidence of abuse. Reports, and our records of what we did about them, are kept, but they no longer link to an account. A report about you keeps only your name and your university, and the reporter&apos;s account link is removed if they delete theirs. The text of a message that was reported is kept with that report. Our staff access log is also kept; it records that an account was deleted and when, but not your email address or name. We may also keep information where the law requires it.</p>
 
       <h2>Your choices and rights</h2>
-      <p>You can edit your profiles and turn modes off at any time in the app, and you can block people. You can also ask us to give you a copy of your data, correct it, or delete your account. Contact us at <Contact />. Under Nigerian data protection law you may also complain to the Nigeria Data Protection Commission.</p>
+      <p>You can edit your profiles and turn modes off at any time in the app, and you can block people. You can delete your account yourself in the app (Profile, then Delete your account): we email a code to your university address to confirm it is you. You can also ask us to give you a copy of your data or correct it, or ask us to delete your account if you cannot sign in. Contact us at <Contact />. Under Nigerian data protection law you may also complain to the Nigeria Data Protection Commission.</p>
 
       <h2>Children</h2>
       <p>The app is for university students. Romance mode is for adults aged 18 and over.</p>
