@@ -23,7 +23,8 @@ const safety = [
 ] as const
 const faq = [
   { q: 'Who can join?', a: <>Students with a university email ending in .edu.ng. You only see students from your own university. We are starting at FUTMinna, so other campuses may be quiet at first.</> },
-  { q: 'Do I need to download anything?', a: <>No. It runs in your phone&apos;s browser. <a href={site.appUrl}>Open the app</a> and sign in with your school email.</> },
+  { q: 'Do I need to download anything?', a: <>No app store needed. It runs in your phone&apos;s browser. <a href={site.appUrl}>Open the app</a> and sign in with your school email. You can also add it to your home screen so it opens like an app, and turn on notifications if you want them.</> },
+  { q: 'What do the notifications say?', a: <>Only that something is waiting, like &quot;You have a new invite&quot;. They never include names, messages or which mode it is, so nothing private shows on a lock screen. You choose whether to turn them on, per device, in Profile.</> },
   { q: 'Can other students see my email?', a: <>No. Your email is only used to confirm you are a student and to send you sign-in codes.</> },
   { q: 'Will people in Friends see my Romance profile?', a: <>No. People only see the profile for the mode where they found you, and Romance is only shown to students who also turned it on. A Study chat never appears in Friends or Romance either.</> },
   { q: 'What does "Online now" mean?', a: <>While you have the app open, you show up as online. When you close it, you drop off by itself after about a minute and a half. We do not track where you are, so online does not mean on campus: check the spot with the person before you set off.</> },

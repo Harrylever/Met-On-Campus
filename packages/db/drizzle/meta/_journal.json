@@ -71,6 +71,13 @@
       "when": 1794999884169,
       "tag": "0009_cute_swarm",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795002505073,
+      "tag": "0010_lush_omega_flight",
+      "breakpoints": true
     }
   ]
 }

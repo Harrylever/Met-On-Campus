@@ -10,7 +10,8 @@
     "start": "bun src/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "admin": "bun src/admin/cli.ts"
+    "admin": "bun src/admin/cli.ts",
+    "push:keys": "bun -e \"import { generateVAPIDKeys } from 'web-push'; const k = generateVAPIDKeys(); console.log('VAPID_PUBLIC_KEY=' + k.publicKey); console.log('VAPID_PRIVATE_KEY=' + k.privateKey)\""
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.3",
@@ -19,11 +20,13 @@
     "elysia": "^1.4.32",
     "ioredis": "^6.0.0",
     "mustache": "^4.2.0",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/mustache": "^4.2.6",
+    "@types/web-push": "^3.6.4",
     "typescript": "^5.9.0"
   }
 }

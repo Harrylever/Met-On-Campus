@@ -71,6 +71,10 @@ export default defineRailway(() => {
       DATABASE_URL: preserve(),
       REDIS_URL: preserve(),
       RESEND_API_KEY: preserve(),
+      // Web push. Generate a pair with `bun run push:keys` in apps/api; the public half is served to browsers, the private half stays here.
+      VAPID_PUBLIC_KEY: preserve(),
+      VAPID_PRIVATE_KEY: preserve(),
+      VAPID_SUBJECT: "mailto:hello@metoncampus.xyz",
       // Photo storage (the project's Railway bucket). Values live only in Railway; without them uploads stay switched off.
       S3_ENDPOINT: preserve(),
       S3_BUCKET: preserve(),

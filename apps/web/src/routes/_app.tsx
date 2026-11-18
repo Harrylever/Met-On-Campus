@@ -3,6 +3,9 @@ import { Link, Outlet, createFileRoute, redirect, useRouter } from '@tanstack/re
 import { useQuery } from '@tanstack/react-query'
 import { api, unwrap } from '~/lib/api'
 import { looksLikeMatric } from '~/lib/name'
+import { registerServiceWorker, setAppBadge } from '~/lib/pwa'
+import { syncPush } from '~/lib/push'
+import { InstallBanner } from '~/components/InstallApp'
 import { useRealtime } from '~/lib/realtime'
 import { Brand, VerifiedPill } from '~/components/ui'
 import { ShellSkeleton } from '~/components/Skeleton'
@@ -30,6 +33,8 @@ function Shell() {
   // What is waiting for you (unread chats, unanswered invites). Pushes keep it fresh; it also refreshes when you return to the tab.
   const unread = useQuery({ queryKey: ['unread'], queryFn: () => unwrap(api.me.unread.get()) })
   const waiting = (unread.data?.total ?? 0) + (unread.data?.rooms ?? 0)
+  useEffect(() => { registerServiceWorker(); void syncPush() }, [])
+  useEffect(() => { setAppBadge(waiting) }, [waiting])
   useEffect(() => { document.title = waiting > 0 ? `(${waiting}) Met On Campus` : 'Met On Campus' }, [waiting])
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col lg:max-w-6xl">
@@ -41,6 +46,7 @@ function Shell() {
           <VerifiedPill campus={me.user.university} />
         </div>
       </header>
+      <InstallBanner />
       {looksLikeMatric(me.user.name) && (
         <div role="status" className="mx-4 mt-4 rounded-[12px] border border-line bg-subtle p-3 text-sm">
           Other students currently see <b>“{me.user.name}”</b>, which can include your matric number.{' '}

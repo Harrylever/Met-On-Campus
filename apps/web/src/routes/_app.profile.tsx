@@ -9,6 +9,9 @@ import { DepartmentRequest } from '~/components/DepartmentRequest'
 import { PhotoField } from '~/components/PhotoField'
 import { DeleteAccount } from '~/components/DeleteAccount'
 import { EmailAlerts } from '~/components/EmailAlerts'
+import { InstallCard } from '~/components/InstallApp'
+import { PushNotifications } from '~/components/PushNotifications'
+import { forgetThisDevice } from '~/lib/push'
 import { looksLikeMatric, validPersonName } from '~/lib/name'
 import { BlockedListSkeleton, LoadingRegion, ProfileFormSkeleton, Skeleton, useSkeleton } from '~/components/Skeleton'
 
@@ -29,7 +32,7 @@ function Profile() {
   const meta = useQuery({ queryKey: ['meta'], queryFn: () => unwrap(api.meta.get()), staleTime: 60_000 })
   const showSkeleton = useSkeleton(meta.isLoading)
 
-  const logout = useMutation({ mutationFn: () => unwrap(api.auth.logout.post()), onSuccess: () => nav({ to: '/login' }) })
+  const logout = useMutation({ mutationFn: async () => { await forgetThisDevice(); return unwrap(api.auth.logout.post()) }, onSuccess: () => nav({ to: '/login' }) })
   const [name, setName] = useState(me.user.name)
   const [department, setDepartment] = useState(me.user.department)
   const [level, setLevel] = useState(me.user.level)
@@ -74,6 +77,10 @@ function Profile() {
         ))
         : meta.isError ? <p className="card text-sm text-ink-2" role="alert">Could not load your profile options. Refresh to try again.</p>
         : showSkeleton ? <LoadingRegion label="Loading your profile"><ProfileFormSkeleton /></LoadingRegion> : null}
+
+      <InstallCard />
+
+      <PushNotifications />
 
       <EmailAlerts on={me.settings.emailAlerts} onChanged={() => router.invalidate()} />
 

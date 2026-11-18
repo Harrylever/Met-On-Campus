@@ -7,8 +7,15 @@ export const queryClient = new QueryClient({ defaultOptions: { queries: { staleT
 
 export const Route = createRootRoute({
   head: () => ({
-    meta: [{ charSet: 'utf-8' }, { name: 'viewport', content: 'width=device-width, initial-scale=1' }, { title: 'Met On Campus' }],
+    meta: [
+      { charSet: 'utf-8' }, { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' }, { title: 'Met On Campus' },
+      { name: 'theme-color', content: '#FAF9F6' },
+      { name: 'mobile-web-app-capable', content: 'yes' }, { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-title', content: 'Met On Campus' }, { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+    ],
     links: [
+      { rel: 'manifest', href: '/manifest.webmanifest' },
+      { rel: 'apple-touch-icon', href: '/icons/apple-touch-icon.png' },
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
       { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
       { rel: 'preconnect', href: 'https://fonts.googleapis.com' },

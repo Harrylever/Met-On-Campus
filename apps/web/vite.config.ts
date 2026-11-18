@@ -9,5 +9,12 @@ export default defineConfig({
   server: { port: 3000, strictPort: true },
   resolve: { tsconfigPaths: true },
   // nitro() turns the Start build into a deployable server; on Vercel it emits .vercel/output automatically.
-  plugins: [tailwindcss(), tanstackStart(), nitro(), viteReact()],
+  plugins: [tailwindcss(), tanstackStart(), nitro({
+    // The service worker must never be cached (a stale one would keep serving old behaviour), and the manifest needs its own type.
+    routeRules: {
+      '/sw.js': { headers: { 'cache-control': 'no-cache, no-store, must-revalidate', 'service-worker-allowed': '/' } },
+      '/manifest.webmanifest': { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'public, max-age=3600' } },
+      '/icons/**': { headers: { 'cache-control': 'public, max-age=86400' } },
+    },
+  }), viteReact()],
 })

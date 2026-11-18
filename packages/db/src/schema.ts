@@ -218,6 +218,20 @@ export const profilePhotos = pgTable('profile_photos', {
   index('profile_photos_queue_idx').on(t.status, t.createdAt),
 ])
 
+// One row per browser or phone that has said "yes, notify me". `endpoint` (unique) is the browser vendor's push address for
+// that device and is what we send to; p256dh/auth are that device's keys for encrypting what we send. A device that is
+// handed to another account moves to that account (see routes/push.ts).
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id: id(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  endpoint: text('endpoint').notNull().unique(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  userAgent: text('user_agent'),
+  lastSentAt: timestamp('last_sent_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [index('push_subscriptions_user_idx').on(t.userId)])
+
 // ---- Platform (staff) ----------------------------------------------------------------------------
 // Staff are separate from students: own table, own sessions, own audit trail. Created only by the
 // `admin:invite` CLI; there is no public sign-up. Secrets are never stored in plain text:

@@ -44,5 +44,12 @@ export const env = {
   publicApiUrl: (process.env.PUBLIC_API_URL ?? (process.env.NODE_ENV === "production" ? "https://jeer.metoncampus.xyz" : `http://localhost:${process.env.PORT ?? process.env.API_PORT ?? 3001}`)).replace(/\/$/, ""),
   // "Something is waiting" emails run only in production unless switched on (so dev and tests never email or spam the console).
   alertsEnabled: (process.env.ALERTS_ENABLED ?? (process.env.NODE_ENV === "production" ? "true" : "false")) === "true",
+  // Web push (browser notifications). Generate a pair once with `bun run push:keys`; the public key is shared with
+  // browsers, the private key stays in Railway. Without both, push is simply off.
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? "",
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
+  vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:hello@metoncampus.xyz",
+  // Extra hosts a push subscription may point at. Development and tests only (a local mock push service).
+  pushExtraHosts: (process.env.NODE_ENV === "production" ? "" : (process.env.PUSH_EXTRA_HOSTS ?? "")).split(",").map((s) => s.trim()).filter(Boolean),
   isProd: process.env.NODE_ENV === "production",
 }

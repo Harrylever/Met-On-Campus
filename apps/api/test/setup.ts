@@ -12,3 +12,9 @@ process.env.TRUST_PROXY = 'false'
 process.env.ADMIN_API_TOKEN = 'test-service-token-0123456789abcdef0123456789abcdef'
 process.env.PLATFORM_ADMIN_EMAILS = 'root@platform.test,second@platform.test'
 process.env.PLATFORM_URL = 'https://platform.test'
+// Web push: throwaway keys for the tests, and a local mock "push service" the tests may point subscriptions at.
+import { generateVAPIDKeys } from 'web-push'
+const vapid = generateVAPIDKeys()
+process.env.VAPID_PUBLIC_KEY = vapid.publicKey
+process.env.VAPID_PRIVATE_KEY = vapid.privateKey
+process.env.PUSH_EXTRA_HOSTS = 'localhost:9912'
