@@ -24,7 +24,7 @@ Dev sign-in: request a code for any `*.edu.ng` address. With `RESEND_API_KEY` em
 `bun run db:seed` loads sample students, rooms and chats (sign in as `amina@st.futminna.edu.ng`).
 
 ## Marketing site
-`apps/marketing` is a static Next.js site for the root domain: home (with an interactive mode preview), safety, universities, terms and privacy. It sets no cookies, loads no analytics, and every call to action points at the app (`NEXT_PUBLIC_APP_URL`).
+`apps/marketing` is a static Next.js site for the root domain: home (with an interactive mode preview), safety, universities, terms and privacy. It sets no cookies, loads no analytics, and every call to action points at the app (`NEXT_PUBLIC_APP_URL`). The "Star on GitHub" link (footer and a "Built in the open" band on the home page) is a plain link, not GitHub's button, because that loads a third-party script; the star count is read from GitHub on the server at build time (refreshed at most daily) and shown only from 10 stars up, so visitors never contact GitHub unless they click. The repository URL lives in `apps/marketing/src/lib/site.ts`.
 
 - `/join` is a "scan to join" page for showing people: a large QR code for `NEXT_PUBLIC_APP_URL` (always dark on white, even in dark mode), the typed address, three steps, PNG/SVG downloads for posters and chats, and a print layout. The code is generated at build time in `src/lib/qr.ts`; if the app URL changes, rebuild and redownload the files. It is noindexed and not in the sitemap.
 - Local: `bun run dev` (marketing on :3200).

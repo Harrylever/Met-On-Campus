@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { HeroDemo } from '~/components/HeroDemo'
 import { Faq } from '~/components/Faq'
+import { StarOnGithub } from '~/components/StarOnGithub'
 import { site } from '~/lib/site'
 
 const steps = [
@@ -125,6 +126,17 @@ export default function Home() {
       <section id="faq" className="container-x py-16 md:py-24">
         <h2 className="text-[clamp(2rem,4.4vw,3.25rem)]">Questions students ask.</h2>
         <div className="mt-10 max-w-3xl"><Faq items={faq} /></div>
+      </section>
+
+      {/* Open source: a quiet band, because it is a reason to trust the app, not a second call to action */}
+      <section className="container-x py-8 md:py-12">
+        <div className="flex flex-col gap-5 border-y border-line py-8 md:flex-row md:items-center md:justify-between md:gap-10">
+          <div className="max-w-[56ch]">
+            <h2 className="text-[clamp(1.5rem,3vw,2rem)]">Built in the open.</h2>
+            <p className="mt-2 text-ink-2">Met On Campus is open source. Anyone can read the code to see how it handles safety and your data. If you like what we are building, give it a star so other students and developers can find it.</p>
+          </div>
+          <div className="shrink-0"><StarOnGithub /></div>
+        </div>
       </section>
 
       {/* Close */}
