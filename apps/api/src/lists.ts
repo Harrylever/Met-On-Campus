@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, or } from "drizzle-orm"
+import { and, asc, eq } from "drizzle-orm"
 import { campusSpots, departments } from "@moc/db"
 import { db } from "./context"
 
@@ -17,14 +17,14 @@ export const FREE_TIME_PRESETS = [
 type ListTable = typeof departments | typeof campusSpots
 
 /**
- * Names a student on `university` can pick: active entries that are global (university null) or for their campus.
- * A campus-specific entry wins over a global one with the same name. Ordered by staff's sort order, then name.
+ * Names a student on `university` can pick: that campus's own active entries, in staff's sort order, then by name. Each campus
+ * has its own list; the entries with no campus are only the template a new campus is copied from, and students never see them.
  */
 async function activeNames(table: ListTable, university: string): Promise<string[]> {
   const rows = await db
     .select({ name: table.name })
     .from(table)
-    .where(and(eq(table.active, true), or(isNull(table.university), eq(table.university, university))))
+    .where(and(eq(table.active, true), eq(table.university, university)))
     .orderBy(asc(table.sortOrder), asc(table.name))
   const seen = new Set<string>()
   return rows

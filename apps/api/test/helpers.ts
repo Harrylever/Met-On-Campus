@@ -1,6 +1,6 @@
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { sql } from 'drizzle-orm'
-import { adminSessions, adminUsers, campusSpots, DEFAULT_DEPARTMENTS, DEFAULT_SPOTS, departments, intentProfiles, sessions, users } from '@moc/db'
+import { adminSessions, adminUsers, campuses, campusSpots, DEFAULT_DEPARTMENTS, DEFAULT_SPOTS, departments, intentProfiles, sessions, users } from '@moc/db'
 import { eq } from 'drizzle-orm'
 import { encrypt, hashBackupCode, newBackupCodes } from '../src/admin/crypto'
 import { hotp, base32Decode, newTotpSecret } from '../src/admin/totp'
@@ -10,13 +10,22 @@ import { db, redis } from '../src/context'
 const sha = (s: string) => new Bun.CryptoHasher('sha256').update(s).digest('hex')
 export type Intent = 'study' | 'friends' | 'romance'
 
+/** The campuses every test starts with (both open, each with its own copy of the default lists). */
+export const TEST_CAMPUSES = [['futminna', 'FUTMinna'], ['unilag', 'UNILAG']] as const
+
 export async function resetAll() {
   await migrate(db, { migrationsFolder: new URL('../../../packages/db/drizzle', import.meta.url).pathname })
   await db.execute(sql`truncate table users, email_codes, admin_users, admin_audit restart identity cascade`)
-  // The lists are staff-editable, so every test starts from the same defaults the migration seeds.
-  await db.execute(sql`truncate table departments, campus_spots`)
+  // The lists are staff-editable, so every test starts from the same state the migration leaves: the template (rows with no
+  // campus), two open campuses that each have their own copy of it, and nothing else. Anything else a test needs it opens itself.
+  await db.execute(sql`truncate table departments, campus_spots, campuses, campus_interest`)
   await db.insert(departments).values(DEFAULT_DEPARTMENTS.map((name, i) => ({ name, sortOrder: (i + 1) * 10 })))
   await db.insert(campusSpots).values(DEFAULT_SPOTS.map((name, i) => ({ name, sortOrder: (i + 1) * 10 })))
+  for (const [slug, name] of TEST_CAMPUSES) {
+    await db.insert(campuses).values({ slug, name })
+    await db.insert(departments).values(DEFAULT_DEPARTMENTS.map((d, i) => ({ name: d, university: slug, sortOrder: (i + 1) * 10 })))
+    await db.insert(campusSpots).values(DEFAULT_SPOTS.map((d, i) => ({ name: d, university: slug, sortOrder: (i + 1) * 10 })))
+  }
   await redis.flushdb()
 }
 

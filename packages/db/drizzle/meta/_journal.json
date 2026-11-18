@@ -99,6 +99,13 @@
       "when": 1795027754736,
       "tag": "0013_fluffy_zaran",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795032309364,
+      "tag": "0014_optimal_strong_guy",
+      "breakpoints": true
     }
   ]
 }

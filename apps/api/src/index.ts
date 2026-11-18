@@ -12,6 +12,7 @@ import { presenceRoutes } from "./routes/presence"
 import { wsRoutes } from "./ws"
 import { adminAuthRoutes, adminSessionRoutes } from "./admin/auth-routes"
 import { adminRoutes } from "./admin/routes"
+import { adminCampuses } from "./admin/campuses"
 import { adminList } from "./admin/lists"
 import { adminDepartmentRequests } from "./admin/department-requests"
 import { adminPhotos } from "./admin/photos"
@@ -51,6 +52,7 @@ export const app = new Elysia()
   .use(adminAuthRoutes)
   .use(adminSessionRoutes)
   .use(adminRoutes)
+  .use(adminCampuses)
   .use(adminList("departments"))
   .use(adminList("spots"))
   .use(adminDepartmentRequests)

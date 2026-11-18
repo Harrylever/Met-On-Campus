@@ -7,6 +7,9 @@ import { adminCall, adminLogin, call, makeAdmin, makeUser, resetAll } from './he
 let S: string
 const A = (m: string, p: string, body?: unknown) => adminCall(m, p, body, { session: S })
 const future = () => new Date(Date.now() + 3600_000).toISOString()
+// Every campus has its own copy of each entry, so find one by name and campus (null = the template new campuses start from).
+const row = async (kind: 'departments' | 'spots', name: string, campus: string | null = 'futminna') =>
+  (await A('GET', `/admin/${kind}`)).json.items.find((i: any) => i.name === name && i.university === campus)
 
 beforeEach(async () => { await resetAll(); S = await adminLogin(await makeAdmin()) })
 
@@ -20,13 +23,15 @@ describe('what students are offered (/meta)', () => {
     expect((await call(null, 'GET', '/meta')).status).toBe(401)
   })
 
-  test('global entries show everywhere, campus entries only on their campus, archived entries nowhere', async () => {
+  test('each campus sees only its own entries; the template and archived entries nowhere', async () => {
     const amina = await makeUser('Amina'), far = await makeUser('Far', { university: 'unilag' })
     await db.insert(departments).values({ name: 'Marine Biology', university: 'unilag', sortOrder: 5 })
     await db.insert(campusSpots).values({ name: 'Jelili Omotola Hall', university: 'unilag', sortOrder: 5 })
     await db.update(campusSpots).set({ active: false }).where(eq(campusSpots.name, 'School Field'))
     const mine = (await call(amina, 'GET', '/meta')).json, theirs = (await call(far, 'GET', '/meta')).json
+    await db.insert(departments).values({ name: 'Template Only Dept' })                                  // no campus: the template
     expect(mine.departments).not.toContain('Marine Biology'); expect(theirs.departments[0]).toBe('Marine Biology')
+    expect([...(await call(amina, 'GET', '/meta')).json.departments, ...(await call(far, 'GET', '/meta')).json.departments]).not.toContain('Template Only Dept')
     expect(mine.spots).not.toContain('Jelili Omotola Hall'); expect(theirs.spots).toContain('Jelili Omotola Hall')
     expect(mine.spots).not.toContain('School Field'); expect(theirs.spots).not.toContain('School Field')
   })
@@ -103,11 +108,15 @@ describe('staff managing the lists', () => {
 
   test('renaming a department updates every student who has it', async () => {
     const a = await makeUser('Amina', { department: 'Cyber Security' }), b = await makeUser('Tunde', { department: 'Computer Science' })
-    const id = (await A('GET', '/admin/departments')).json.items.find((i: any) => i.name === 'Cyber Security').id
+    const far = await makeUser('Far', { university: 'unilag', department: 'Cyber Security' })
+    const id = (await row('departments', 'Cyber Security')).id
     expect((await A('PATCH', `/admin/departments/${id}`, { name: 'Cybersecurity' })).status).toBe(200)
     expect((await db.select().from(users).where(eq(users.id, a.id)))[0]!.department).toBe('Cybersecurity')
     expect((await db.select().from(users).where(eq(users.id, b.id)))[0]!.department).toBe('Computer Science')
     expect((await call(a, 'GET', '/meta')).json.departments).toContain('Cybersecurity')
+    // Another campus has its own entry: its students and its list are untouched.
+    expect((await db.select().from(users).where(eq(users.id, far.id)))[0]!.department).toBe('Cyber Security')
+    expect((await call(far, 'GET', '/meta')).json.departments).toContain('Cyber Security')
     const actions = (await db.select().from(adminAudit)).map((r) => r.action)
     expect(actions).toContain('department.rename')
   })
@@ -116,8 +125,7 @@ describe('staff managing the lists', () => {
     const a = await makeUser('Amina'), far = await makeUser('Far', { university: 'unilag' })
     await call(a, 'PUT', '/me/profiles/study', { usualSpot: 'Faculty Quad' })
     await db.update(intentProfiles).set({ usualSpot: 'Faculty Quad' }).where(eq(intentProfiles.userId, far.id))
-    const [scoped] = await db.insert(campusSpots).values({ name: 'Faculty Quad', university: 'futminna' }).returning()
-    await A('PATCH', `/admin/spots/${scoped!.id}`, { name: 'The Quad' })
+    await A('PATCH', `/admin/spots/${(await row('spots', 'Faculty Quad')).id}`, { name: 'The Quad' })
     const mine = (await db.select().from(intentProfiles).where(eq(intentProfiles.userId, a.id)))[0]!.usualSpot
     const theirs = (await db.select().from(intentProfiles).where(eq(intentProfiles.userId, far.id)))[0]!.usualSpot
     expect(mine).toBe('The Quad'); expect(theirs).toBe('Faculty Quad')
@@ -130,9 +138,11 @@ describe('staff managing the lists', () => {
 
   test('archive hides it from students but keeps it on existing profiles; restore brings it back', async () => {
     const a = await makeUser('Amina', { department: 'Cyber Security' })
-    const id = (await A('GET', '/admin/departments')).json.items.find((i: any) => i.name === 'Cyber Security').id
+    const far = await makeUser('Far', { university: 'unilag' })
+    const id = (await row('departments', 'Cyber Security')).id
     await A('PATCH', `/admin/departments/${id}`, { active: false })
     expect((await call(a, 'GET', '/meta')).json.departments).not.toContain('Cyber Security')
+    expect((await call(far, 'GET', '/meta')).json.departments).toContain('Cyber Security')            // archiving is per campus
     expect((await db.select().from(users).where(eq(users.id, a.id)))[0]!.department).toBe('Cyber Security')
     await A('PATCH', `/admin/departments/${id}`, { active: true })
     expect((await call(a, 'GET', '/meta')).json.departments).toContain('Cyber Security')
@@ -142,13 +152,17 @@ describe('staff managing the lists', () => {
 
   test('shows how many students use each entry; only unused entries can be deleted', async () => {
     await makeUser('Amina', { department: 'Cyber Security' })
-    const list = (await A('GET', '/admin/departments')).json.items
-    const used = list.find((i: any) => i.name === 'Cyber Security'), unused = list.find((i: any) => i.name === 'Electrical Engineering')
+    const used = await row('departments', 'Cyber Security'), unused = await row('departments', 'Electrical Engineering')
     expect(used.inUse).toBe(1); expect(unused.inUse).toBe(0)
+    expect((await row('departments', 'Cyber Security', 'unilag')).inUse).toBe(0)                      // counted per campus
+    const template = await row('departments', 'Cyber Security', null)
+    expect(template.inUse).toBe(0)                                                                    // no student uses the template
     const refused = await A('DELETE', `/admin/departments/${used.id}`)
     expect(refused.status).toBe(409); expect(refused.json).toEqual({ error: 'in_use', inUse: 1 })
     expect((await A('DELETE', `/admin/departments/${unused.id}`)).status).toBe(200)
-    expect((await A('GET', '/admin/departments')).json.items.map((i: any) => i.name)).not.toContain('Electrical Engineering')
+    expect(await row('departments', 'Electrical Engineering')).toBeUndefined()
+    expect(await row('departments', 'Electrical Engineering', 'unilag')).toBeDefined()                // another campus keeps its own
+    expect((await A('DELETE', `/admin/departments/${template.id}`)).status).toBe(200)                  // a template entry can always go
     expect((await db.select().from(adminAudit)).map((r) => r.action)).toContain('department.delete')
   })
 

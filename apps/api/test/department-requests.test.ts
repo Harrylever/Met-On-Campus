@@ -91,13 +91,15 @@ describe('staff resolving requests', () => {
     expect((await pending()).map((g) => g.university)).toEqual(['unilag'])
   })
 
-  test('approving "for all campuses" makes it global, and staff can fix the spelling', async () => {
+  test('approving "for all campuses" adds it to every campus and the template, and staff can fix the spelling', async () => {
     const a = await makeUser('Amina', { department: NONE }), far = await makeUser('Far', { university: 'unilag' })
     await ask(a, 'marine biologee')
     await resolve((await pending())[0]!.requestId, { action: 'approve', name: 'Marine Biology', scope: 'all' })
     expect(await deptOf(a.id)).toBe('Marine Biology')
     expect((await call(far, 'GET', '/meta')).json.departments).toContain('Marine Biology')
-    expect((await db.select().from(departments).where(eq(departments.name, 'Marine Biology')))[0]!.university).toBeNull()
+    expect((await call(a, 'GET', '/meta')).json.departments).toContain('Marine Biology')
+    const where = (await db.select().from(departments).where(eq(departments.name, 'Marine Biology'))).map((d) => d.university ?? '(template)').sort()
+    expect(where).toEqual(['(template)', 'futminna', 'unilag'])                                      // one entry each, no duplicates
   })
 
   test('approving a name that already exists is refused, pointing staff to "use existing"', async () => {

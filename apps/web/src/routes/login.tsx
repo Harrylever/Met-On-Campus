@@ -83,6 +83,7 @@ function Login() {
       return n <= 90 ? `You asked for a code a moment ago. Try again in ${wait(n)}.` : `You have asked for several codes. Try again in ${wait(n)}.`
     }
     if (e.value?.error === "university_email_required") return "Use your university email address, which ends in .edu.ng."
+    if (e.value?.error === "campus_not_open") return "Your university is not on Met On Campus yet. We have noted that you asked, and we open new universities based on interest."
     return "We could not send a code. Check your connection and try again."
   })()
   const verifyError = (() => {

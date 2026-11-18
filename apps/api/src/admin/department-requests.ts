@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm'
 import { departmentRequests, departments, NO_DEPARTMENT, users } from '@moc/db'
 import { bus, db, topics } from '../context'
 import { tidy, validListName } from '../lists'
@@ -29,7 +29,8 @@ export const adminDepartmentRequests = new Elysia({ prefix: '/admin/department-r
       else if (recent.size < 15) recent.set(k, { name: r.name, university: r.university, status: r.status, resolvedName: r.resolvedName, note: r.note, reviewedAt: r.reviewedAt, students: 1 })
     }
     // Existing departments staff can map a request onto ("Cyber Sec" -> "Cyber Security").
-    const existing = await db.select({ id: departments.id, name: departments.name, university: departments.university }).from(departments).where(eq(departments.active, true)).orderBy(departments.sortOrder, departments.name)
+    // Departments staff can map a request onto: each campus's own list (the template is not offered).
+    const existing = await db.select({ id: departments.id, name: departments.name, university: departments.university }).from(departments).where(and(eq(departments.active, true), isNotNull(departments.university))).orderBy(departments.sortOrder, departments.name)
     return { pending: [...groups.values()], recent: [...recent.values()], departments: existing }
   })
 
@@ -49,17 +50,25 @@ export const adminDepartmentRequests = new Elysia({ prefix: '/admin/department-r
       if (body.action === 'approve') {
         const name = tidy(body.name ?? req.name)
         if (!validListName(name)) return { code: 422 as const, error: 'invalid_name' }
-        const scope = body.scope === 'all' ? null : req.university
-        // If a department with this name already applies to the campus, point staff at "use existing" instead.
-        const [clash] = await tx.select({ id: departments.id }).from(departments).where(and(sql`lower(${departments.name}) = ${name.toLowerCase()}`, or(isNull(departments.university), eq(departments.university, req.university)))).limit(1)
+        // If this campus already has a department with this name, point staff at "use existing" instead.
+        const [clash] = await tx.select({ id: departments.id }).from(departments).where(and(sql`lower(${departments.name}) = ${name.toLowerCase()}`, eq(departments.university, req.university))).limit(1)
         if (clash) return { code: 409 as const, error: 'already_exists' }
         const [max] = await tx.select({ m: sql<number>`coalesce(max(${departments.sortOrder}), 0)::int` }).from(departments)
-        await tx.insert(departments).values({ name, university: scope, sortOrder: (max?.m ?? 0) + 10 })
+        const sortOrder = (max?.m ?? 0) + 10
+        await tx.insert(departments).values({ name, university: req.university, sortOrder })
+        // "All campuses": also the template for new campuses, and every other campus that does not have it yet.
+        if (body.scope === 'all') {
+          await tx.execute(sql`
+            insert into departments (name, university, sort_order)
+            select ${name}, c.slug, ${sortOrder} from campuses c
+            where c.slug <> ${req.university} and not exists (select 1 from departments x where x.university = c.slug and lower(x.name) = ${name.toLowerCase()})`)
+          await tx.insert(departments).values({ name, university: null, sortOrder }).onConflictDoNothing()
+        }
         resolvedName = name
       } else if (body.action === 'merge') {
         if (!body.departmentId) return { code: 422 as const, error: 'department_required' }
         const [dept] = await tx.select().from(departments).where(eq(departments.id, body.departmentId)).limit(1)
-        if (!dept || !dept.active || (dept.university !== null && dept.university !== req.university)) return { code: 422 as const, error: 'department_not_applicable' }
+        if (!dept || !dept.active || dept.university !== req.university) return { code: 422 as const, error: 'department_not_applicable' }
         resolvedName = dept.name
       }
 

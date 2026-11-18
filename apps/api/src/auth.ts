@@ -5,6 +5,7 @@ import { db } from "./context"
 import { sendVerificationCode } from "./email"
 import { hit } from "./ratelimit"
 import { env } from "./env"
+import { campusOpen, mayRequestCode, noteInterest } from "./campuses"
 
 const sha = (s: string) =>
   new Bun.CryptoHasher("sha256").update(s).digest("hex")
@@ -85,6 +86,13 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         set.headers["retry-after"] = String(wait)
         return status(429, { error: "too_many_requests", retryAfter: wait })
       }
+      // Only universities staff have opened can sign up (an existing student can always sign in). The attempt is counted, by
+      // university only, so staff can see which one to open next.
+      const campus = universityOf(email)
+      if (!(await mayRequestCode(email, campus))) {
+        await noteInterest(campus)
+        return status(422, { error: "campus_not_open" })
+      }
       const code = String(
         crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000,
       ).padStart(6, "0")
@@ -144,6 +152,8 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         .from(users)
         .where(eq(users.email, email))
         .limit(1)
+      // A campus paused (or never opened) after the code was sent still cannot get a new account.
+      if (!existing && !(await campusOpen(university))) return status(403, { error: "campus_not_open" })
       // Do not mint a session for a suspended student; the code is already spent.
       if (existing?.status === "suspended") return status(403, { error: "account_suspended" })
       // Only a brand-new account can be attributed to an invite, and only if the link's owner is a real, active student

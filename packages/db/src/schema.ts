@@ -168,6 +168,26 @@ export const reports = pgTable('reports', {
 // ---- Admin-managed lists --------------------------------------------------------------------------
 // Staff manage these from the platform. `university` null means "offered on every campus". Students store the
 // chosen name as plain text (users.department, intent_profiles.usual_spot), so renaming here updates those rows too.
+// The allowlist of universities. A student can create an account only at a campus listed here and open. `slug` is the
+// university part of the email domain (st.futminna.edu.ng -> futminna), the same value stored in users.university.
+// Pausing a campus (open = false) stops new accounts only; existing students carry on.
+export const campuses = pgTable('campuses', {
+  slug: text('slug').primaryKey(),
+  name: text('name').notNull(),
+  open: boolean('open').notNull().default(true),
+  createdAt: createdAt(),
+})
+
+// How many times someone with an address at a campus that is not open asked for a code. A counter per university and
+// nothing else: no email, no name, no IP. It tells staff which campus to open next.
+export const campusInterest = pgTable('campus_interest', {
+  slug: text('slug').primaryKey(),
+  attempts: integer('attempts').notNull().default(0),
+  lastAt: timestamp('last_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Rows with a university belong to that campus and are what its students pick from. Rows with no university are the
+// template a new campus is copied from when staff open it; students never see them.
 export const departments = pgTable('departments', {
   id: id(),
   name: text('name').notNull(),
