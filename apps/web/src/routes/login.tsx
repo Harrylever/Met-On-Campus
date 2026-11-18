@@ -10,12 +10,18 @@ type ReturnTo = (typeof RETURN_TO)[number]
 
 export const Route = createFileRoute("/login")({
   ssr: false,
-  validateSearch: (s: Record<string, unknown>): { redirect?: ReturnTo; deleted?: true } => ({
+  validateSearch: (s: Record<string, unknown>): { redirect?: ReturnTo; deleted?: true; invite?: string } => ({
     redirect: RETURN_TO.find((p) => p === s.redirect),
+    invite: typeof s.invite === "string" && INVITE.test(s.invite) ? s.invite : undefined,
     deleted: s.deleted === 1 || s.deleted === "1" || s.deleted === true ? true : undefined,
   }),
   component: Login,
 })
+
+// A friend's invite code (the ?invite= in their link). Kept on this device until the account is verified.
+const INVITE = /^[a-f0-9]{10}$/
+const INVITE_KEY = "moc.invite"
+const savedInvite = () => { try { const v = localStorage.getItem(INVITE_KEY); return v && INVITE.test(v) ? v : null } catch { return null } }
 
 type ApiError = { status?: number; value?: { error?: string; retryAfter?: number } }
 const wait = (seconds: number) =>
@@ -25,7 +31,10 @@ const wait = (seconds: number) =>
 
 function Login() {
   const nav = useNavigate()
-  const { redirect, deleted } = Route.useSearch()
+  const { redirect, deleted, invite } = Route.useSearch()
+  // Remember the code from the link, so it survives the email and code steps (and a reload in between).
+  useEffect(() => { if (invite) try { localStorage.setItem(INVITE_KEY, invite) } catch { /* the link still works this visit */ } }, [invite])
+  const invited = !!(invite ?? savedInvite())
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
   const [step, setStep] = useState<"email" | "code">("email")
@@ -59,8 +68,11 @@ function Login() {
     },
   })
   const verify = useMutation({
-    mutationFn: (c: string) => unwrap(api.auth.verify.post({ email: cleanEmail, code: c })),
-    onSuccess: (r) => nav({ to: r.onboarded ? (redirect ?? "/discover") : "/onboarding" }),
+    mutationFn: (c: string) => unwrap(api.auth.verify.post({ email: cleanEmail, code: c, ...((invite ?? savedInvite()) ? { invite: (invite ?? savedInvite())! } : {}) })),
+    onSuccess: (r) => {
+      try { localStorage.removeItem(INVITE_KEY) } catch { /* nothing to clear */ }
+      nav({ to: r.onboarded ? (redirect ?? "/discover") : "/onboarding" })
+    },
   })
 
   const sendError = (() => {
@@ -96,6 +108,11 @@ function Login() {
             if (okEmail) send.mutate()
           }}
         >
+          {invited && !deleted && (
+            <p role="status" className="rounded-[12px] border border-line bg-subtle p-3 text-sm">
+              A student invited you to Met On Campus. Sign in with your school email to join.
+            </p>
+          )}
           {deleted && (
             <p role="status" className="rounded-[12px] border border-line bg-subtle p-3 text-sm">
               Your account has been deleted. Your profiles, photos and messages are gone. You are welcome to join again any time, as a new account.

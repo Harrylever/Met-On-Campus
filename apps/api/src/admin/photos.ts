@@ -3,6 +3,7 @@ import { and, desc, eq, sql } from 'drizzle-orm'
 import { profilePhotos, users } from '@moc/db'
 import { bus, db, topics } from '../context'
 import { discardFile } from '../photos'
+import { onPhotoApproved } from '../rewards/events'
 import { store } from '../storage'
 import { adminAuthed, audit } from './session'
 
@@ -53,6 +54,7 @@ export const adminPhotos = new Elysia({ prefix: '/admin/photos' }).use(adminAuth
     })
     if (out.code !== 200) return status(out.code, { error: out.error })
     await Promise.all(out.stale.map((k) => discardFile(k)))
+    if (body.action === 'approve') await onPhotoApproved(out.p.userId, out.p.intent)
     bus.publish(topics.user(out.p.userId), { type: 'photo.review', intent: out.p.intent, status: out.next, note })
     await audit(admin.id, `photo.${body.action}`, { targetType: 'photo', targetId: out.p.id, meta: { userId: out.p.userId, intent: out.p.intent, note }, ip })
     return { ok: true }

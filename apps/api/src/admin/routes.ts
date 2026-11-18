@@ -2,10 +2,11 @@ import { Elysia, t } from 'elysia'
 import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm'
 import {
   adminAudit, adminUsers, blocks, connectionRequests, conversations, intentProfiles, messages,
-  moderationActions, reports, roomMembers, rooms, sessions, users,
+  moderationActions, reports, roomMembers, rooms, sessions, userProgress, users,
 } from '@moc/db'
 import { db, redis } from '../context'
 import { deleteAccount } from '../account'
+import { ledgerOf } from '../rewards/engine'
 import { recentRequests } from '../metrics'
 import * as presence from '../presence'
 import { adminAuthed, audit } from './session'
@@ -139,8 +140,14 @@ export const adminRoutes = new Elysia({ prefix: '/admin' }).use(adminAuthed)
       db.select({ n: count() }).from(sessions).where(eq(sessions.userId, u.id)),
       db.select({ at: sql<Date | null>`max(${messages.createdAt})` }).from(messages).where(eq(messages.senderId, u.id)),
     ])
+    // Points and streak: a ledger of what was earned and why, who invited this student, and who they invited.
+    const [prog] = await db.select().from(userProgress).where(eq(userProgress.userId, u.id)).limit(1)
+    const [referrer] = u.referredBy ? await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, u.referredBy)).limit(1) : []
+    const [invitedCount] = await db.select({ n: count() }).from(users).where(eq(users.referredBy, u.id))
+    const rewards = { points: prog?.pointsTotal ?? 0, streakCurrent: prog?.streakCurrent ?? 0, streakBest: prog?.streakBest ?? 0, lastActiveDay: prog?.lastActiveDay ?? null, referredBy: referrer ?? null, invited: invitedCount?.n ?? 0, ledger: await ledgerOf(u.id) }
     // Staff see counts and metadata about conversations, never their content. Only report snapshots carry text.
     return {
+      rewards,
       user: { ...person(u), email: u.email, createdAt: u.createdAt, verifiedAt: u.verifiedAt, suspendedAt: u.suspendedAt, suspendedReason: u.suspendedReason },
       profiles: profiles.map((p) => ({ intent: p.intent, enabled: p.enabled, prompt: p.prompt, tags: p.tags, hideFromDepartment: p.hideFromDepartment })),
       activity: {

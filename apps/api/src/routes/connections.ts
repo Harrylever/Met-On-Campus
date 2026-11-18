@@ -8,6 +8,7 @@ import { canInteract, orderedPair, type Intent as IntentName } from '../visibili
 import { blockedWith, isBlockedBetween } from '../blocks'
 import { approvedPhotoIds, romanceMatched } from '../photos'
 import { between, pairRequest, type Req } from '../requests'
+import { onConnectionAccepted, onMeetupAccepted } from '../rewards/events'
 
 const Intent = t.Union([t.Literal('study'), t.Literal('friends'), t.Literal('romance')])
 type User = typeof users.$inferSelect
@@ -59,6 +60,7 @@ export const connectionRoutes = new Elysia().use(authed)
       const [req] = await tx.insert(connectionRequests).values({ intent: body.intent, fromUserId: user.id, toUserId: other.id }).onConflictDoNothing().returning()
       return { req, conv: conv!, matched: false }
     })
+    if (result.matched) await onConnectionAccepted(result.req!)
     if (result.matched) bus.publish(topics.user(other.id), { type: 'connection.updated', id: result.req!.id, status: 'accepted', intent: body.intent })
     else if (result.req) bus.publish(topics.user(other.id), { type: 'connection.new', intent: body.intent, conversationId: result.conv.id, from: publicSelf(user) })
     return { requestId: result.req?.id ?? null, conversationId: result.conv.id, matched: result.matched }
@@ -69,6 +71,7 @@ export const connectionRoutes = new Elysia().use(authed)
     const [req] = await db.update(connectionRequests).set({ status: body.status })
       .where(and(eq(connectionRequests.id, params.id), eq(connectionRequests.toUserId, user.id), eq(connectionRequests.status, 'pending'))).returning()
     if (!req) return status(404, { error: 'not_found' })
+    if (req.status === 'accepted') await onConnectionAccepted(req)
     bus.publish(topics.user(req.fromUserId), { type: 'connection.updated', id: req.id, status: req.status, intent: req.intent })
     return { request: req }
   }, { body: t.Object({ status: t.Union([t.Literal('accepted'), t.Literal('declined')]) }) })
@@ -152,6 +155,7 @@ export const connectionRoutes = new Elysia().use(authed)
     if (row.m.meetupStatus !== 'pending') return status(409, { error: 'already_resolved' })
     if (row.m.meetupWhen && row.m.meetupWhen < new Date()) return status(409, { error: 'expired' })
     const [msg] = await db.update(messages).set({ meetupStatus: body.status }).where(eq(messages.id, params.id)).returning()
+    if (body.status === 'confirmed') await onMeetupAccepted(row.c, row.m.id)
     bus.publish(topics.user(row.m.senderId), { type: 'meetup.updated', conversationId: row.c.id, message: msg })
     return { message: msg }
   }, { body: t.Object({ status: t.Union([t.Literal('confirmed'), t.Literal('declined')]) }) })

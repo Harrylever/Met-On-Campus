@@ -16,6 +16,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppDiscoverRouteImport } from './routes/_app.discover'
 import { Route as AppMessagesRouteImport } from './routes/_app.messages'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppProgressRouteImport } from './routes/_app.progress'
 import { Route as AppRoomsRouteImport } from './routes/_app.rooms'
 
 const IndexRoute = IndexRouteImport.update({
@@ -52,6 +53,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProgressRoute = AppProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRoomsRoute = AppRoomsRouteImport.update({
   id: '/rooms',
   path: '/rooms',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/discover': typeof AppDiscoverRoute
   '/messages': typeof AppMessagesRoute
   '/profile': typeof AppProfileRoute
+  '/progress': typeof AppProgressRoute
   '/rooms': typeof AppRoomsRoute
 }
 export interface FileRoutesByTo {
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/discover': typeof AppDiscoverRoute
   '/messages': typeof AppMessagesRoute
   '/profile': typeof AppProfileRoute
+  '/progress': typeof AppProgressRoute
   '/rooms': typeof AppRoomsRoute
 }
 export interface FileRoutesById {
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/_app/discover': typeof AppDiscoverRoute
   '/_app/messages': typeof AppMessagesRoute
   '/_app/profile': typeof AppProfileRoute
+  '/_app/progress': typeof AppProgressRoute
   '/_app/rooms': typeof AppRoomsRoute
 }
 export interface FileRouteTypes {
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/messages'
     | '/profile'
+    | '/progress'
     | '/rooms'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/messages'
     | '/profile'
+    | '/progress'
     | '/rooms'
   id:
     | '__root__'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/_app/discover'
     | '/_app/messages'
     | '/_app/profile'
+    | '/_app/progress'
     | '/_app/rooms'
   fileRoutesById: FileRoutesById
 }
@@ -176,6 +188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/progress': {
+      id: '/_app/progress'
+      path: '/progress'
+      fullPath: '/progress'
+      preLoaderRoute: typeof AppProgressRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/rooms': {
       id: '/_app/rooms'
       path: '/rooms'
@@ -190,6 +209,7 @@ interface AppRouteChildren {
   AppDiscoverRoute: typeof AppDiscoverRoute
   AppMessagesRoute: typeof AppMessagesRoute
   AppProfileRoute: typeof AppProfileRoute
+  AppProgressRoute: typeof AppProgressRoute
   AppRoomsRoute: typeof AppRoomsRoute
 }
 
@@ -197,6 +217,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDiscoverRoute: AppDiscoverRoute,
   AppMessagesRoute: AppMessagesRoute,
   AppProfileRoute: AppProfileRoute,
+  AppProgressRoute: AppProgressRoute,
   AppRoomsRoute: AppRoomsRoute,
 }
 

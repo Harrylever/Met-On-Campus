@@ -22,7 +22,7 @@ export default function Terms() {
       </ul>
 
       <h2>3. How the app works</h2>
-      <p>You choose which modes to turn on: Study, Friends and Romance. Each has its own profile and inbox. You can send invitations, which the other person accepts or turns down, message people you are connected to, suggest meetups at public campus spots, and join rooms for Study and Friends. Features may change as we improve the app.</p>
+      <p>You choose which modes to turn on: Study, Friends and Romance. Each has its own profile and inbox. You can send invitations, which the other person accepts or turns down, message people you are connected to, suggest meetups at public campus spots, and join rooms for Study and Friends. Features may change as we improve the app. Points and streaks are just for fun: they have no cash value and cannot be exchanged for anything, and we can remove points that were earned unfairly.</p>
 
       <h2>4. Rules</h2>
       <p>You agree not to:</p>
@@ -32,6 +32,7 @@ export default function Terms() {
         <li>send spam, advertising or anything unrelated to meeting other students;</li>
         <li>share sexual content, hate speech, or anything illegal;</li>
         <li>ask for or share someone&apos;s private information without their consent;</li>
+        <li>earn points unfairly, for example with extra accounts, fake invitations or by misusing invite links;</li>
         <li>try to break, scrape, overload or get around the app&apos;s protections, or use it to build another service.</li>
       </ul>
 

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { adminApi } from '~/lib/admin-api'
 import { ago, title, when } from '~/lib/format'
 import { DeleteAccountForm } from './DeleteAccountForm'
+import { ReversePoints } from './ReversePoints'
 import { SuspensionForm } from './SuspensionForm'
 
 export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
@@ -40,6 +41,24 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
           <Row k="Blocked by this student" v={s.blocksGiven} /><Row k="Blocked this student" v={s.blocksReceived} /><Row k="Reports filed" v={s.reportsFiled} /><Row k="Reports against" v={d.reportsAgainst.length} /></dl></section>
       </div>
 
+      <section className="card"><h2 className="mb-3 text-lg font-semibold">Points and streak</h2>
+        <dl className="mb-3">
+          <Row k="Points" v={d.rewards.points} /><Row k="Streak now / best" v={`${d.rewards.streakCurrent} / ${d.rewards.streakBest} days`} />
+          <Row k="Last opened the app" v={d.rewards.lastActiveDay ?? 'never'} />
+          <Row k="Invited by" v={d.rewards.referredBy ? <Link href={`/users/${d.rewards.referredBy.id}`} className="underline underline-offset-2">{d.rewards.referredBy.name}</Link> : 'nobody'} />
+          <Row k="People they invited" v={d.rewards.invited} />
+        </dl>
+        {d.rewards.ledger.length === 0 ? <p className="text-sm text-ink-2">Nothing earned yet.</p> : (
+          <ul className="divide-y divide-line text-sm">
+            {d.rewards.ledger.map((e: any) => (
+              <li key={e.id} className="py-2">
+                <div className={`flex items-baseline justify-between gap-3 ${e.reversed ? 'text-ink-3 line-through' : ''}`}><span>{e.label}</span><span className="shrink-0">{e.points > 0 ? '+' : ''}{e.points} · {e.day}</span></div>
+                {e.reversed ? <p className="text-xs text-ink-2">Reversed: {e.reversalNote}</p> : <ReversePoints eventId={e.id} userId={u.id} />}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       <section className="card"><h2 className="mb-3 text-lg font-semibold">Reports against</h2>
         {d.reportsAgainst.length === 0 ? <p className="text-sm text-ink-2">None.</p> : <ul className="space-y-1 text-sm">{d.reportsAgainst.map((x: any) => <li key={x.id}>{title(x.reason)} <span className="badge ml-2">{title(x.status)}</span> <span className="text-xs text-ink-2">{when(x.createdAt)}</span></li>)}</ul>}</section>
       <section className="card"><h2 className="mb-3 text-lg font-semibold">Moderation history</h2>

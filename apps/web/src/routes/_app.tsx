@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '~/lib/api'
 import { looksLikeMatric } from '~/lib/name'
 import { registerServiceWorker, setAppBadge } from '~/lib/pwa'
@@ -23,7 +23,7 @@ export const Route = createFileRoute('/_app')({ ssr: false,
 })
 
 // What a screen reader announces as the page name when you move between screens.
-const PAGE: Record<string, string> = { '/discover': 'Discover', '/rooms': 'Rooms', '/messages': 'Messages', '/profile': 'Profile' }
+const PAGE: Record<string, string> = { '/discover': 'Discover', '/rooms': 'Rooms', '/messages': 'Messages', '/profile': 'Profile', '/progress': 'Progress' }
 const NAV = [{ to: '/discover', label: 'Discover' }, { to: '/rooms', label: 'Rooms' }, { to: '/messages', label: 'Messages' }, { to: '/profile', label: 'Profile' }] as const
 
 function Shell() {
@@ -36,6 +36,28 @@ function Shell() {
   const unread = useQuery({ queryKey: ['unread'], queryFn: () => unwrap(api.me.unread.get()) })
   const waiting = (unread.data?.total ?? 0) + (unread.data?.rooms ?? 0)
   useEffect(() => { registerServiceWorker(); void syncPush() }, [])
+  // Opening the app counts as the day's check-in (the server counts a Nigerian day once, however often this runs).
+  // A new streak milestone, a rest day that saved your streak, or joining through a friend is worth saying.
+  const qc = useQueryClient()
+  const [reward, setReward] = useState<string | null>(null)
+  useEffect(() => {
+    let last = 0
+    const run = async () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 30 * 60_000) return
+      last = Date.now()
+      try {
+        const r = await unwrap(api.me.checkin.post())
+        if (r.alreadyCheckedIn) return
+        void qc.invalidateQueries({ queryKey: ['progress'] })
+        const m = r.awarded.find((a) => a.kind.startsWith('streak_'))
+        const friend = r.awarded.find((a) => a.kind === 'invited_by_friend')
+        setReward(m ? `${m.kind.replace('streak_', '')}-day streak! You earned ${m.points} points.` : friend ? `Thanks for joining through a friend. You earned ${friend.points} points.` : r.restUsed ? 'A rest day kept your streak going.' : null)
+      } catch { /* a missed check-in is harmless: the next visit counts */ }
+    }
+    void run()
+    document.addEventListener('visibilitychange', run)
+    return () => document.removeEventListener('visibilitychange', run)
+  }, [qc])
   useEffect(() => { setAppBadge(waiting) }, [waiting])
   // A single-page app never reloads, so tell assistive technology the page changed: a new title, and focus moves to the page itself.
   const path = useRouterState({ select: (s) => s.location.pathname })
@@ -57,6 +79,12 @@ function Shell() {
       </header>
       <main id="main" ref={main} tabIndex={-1} className="flex-1 px-4 pb-24 pt-5">
       <InstallBanner />
+      {reward && (
+        <div role="status" className="mb-4 flex items-center justify-between gap-3 rounded-[12px] border border-line bg-subtle p-3 text-sm">
+          <span>{reward} <Link to="/progress" className="font-semibold underline underline-offset-2">See your progress</Link></span>
+          <button type="button" className="btn btn-ghost h-9 px-3 text-sm" onClick={() => setReward(null)}>Dismiss</button>
+        </div>
+      )}
       {looksLikeMatric(me.user.name) && (
         <div role="status" className="mb-4 rounded-[12px] border border-line bg-subtle p-3 text-sm">
           Other students currently see <b>“{me.user.name}”</b>, which can include your matric number.{' '}

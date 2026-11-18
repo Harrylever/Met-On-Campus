@@ -1,6 +1,7 @@
 import { relations, sql } from 'drizzle-orm'
 import {
-  boolean, check, index, integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid,
+  boolean, check, date, index, integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 
 export const intentEnum = pgEnum('intent', ['study', 'friends', 'romance'])
@@ -38,6 +39,10 @@ export const users = pgTable('users', {
   lastAlertAt: timestamp('last_alert_at', { withTimezone: true }),
   lastAlertSig: text('last_alert_sig'),
   unsubscribeToken: uuid('unsubscribe_token').notNull().unique().defaultRandom(),
+  // Friend invites: the short code in this student's personal invite link, and who (if anyone) invited them. The inviter is
+  // recorded only when the account is first created, so an existing member can never be "claimed" by a link.
+  inviteCode: text('invite_code').notNull().unique().default(sql`substr(md5(random()::text || clock_timestamp()::text), 1, 10)`),
+  referredBy: uuid('referred_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
 }, (t) => [check('level_range', sql`${t.level} between 100 and 900`)])
 
@@ -231,6 +236,43 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
   lastSentAt: timestamp('last_sent_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [index('push_subscriptions_user_idx').on(t.userId)])
+
+// ---- Rewards: streaks and points ------------------------------------------------------------------------------------
+// Days are Nigerian calendar days (UTC+1, no daylight saving), stored as 'YYYY-MM-DD'. Romance never earns points.
+export const userProgress = pgTable('user_progress', {
+  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  pointsTotal: integer('points_total').notNull().default(0), // always the sum of this person's un-reversed point_events
+  streakCurrent: integer('streak_current').notNull().default(0),
+  streakBest: integer('streak_best').notNull().default(0),
+  lastActiveDay: date('last_active_day', { mode: 'string' }),
+  lastRestOn: date('last_rest_on', { mode: 'string' }), // the day a free "rest day" last kept the streak alive (one a week)
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// One row per day a student opened the app.
+export const dailyCheckins = pgTable('daily_checkins', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  day: date('day', { mode: 'string' }).notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.day] })])
+
+// The points ledger: append-only. Every award is one row; (user, key) is unique so the same event can never pay twice.
+// Staff can reverse a row (it stays, marked) and the total follows. Totals and leaderboards ignore reversed rows.
+export const pointEvents = pgTable('point_events', {
+  id: id(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(),
+  points: integer('points').notNull(),
+  key: text('key').notNull(), // what this award was for, e.g. "checkin:2026-11-18" or "conn:<requestId>"
+  day: date('day', { mode: 'string' }).notNull(), // Nigerian day it was earned, for daily caps
+  createdAt: createdAt(),
+  reversedAt: timestamp('reversed_at', { withTimezone: true }),
+  reversedBy: uuid('reversed_by'), // admin_users.id (no FK so deleting an admin keeps the history)
+  reversalNote: text('reversal_note'),
+}, (t) => [
+  uniqueIndex('point_events_once').on(t.userId, t.key),
+  index('point_events_user_idx').on(t.userId, t.createdAt),
+  index('point_events_day_idx').on(t.userId, t.day),
+])
 
 // ---- Platform (staff) ----------------------------------------------------------------------------
 // Staff are separate from students: own table, own sessions, own audit trail. Created only by the

@@ -146,6 +146,13 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         .limit(1)
       // Do not mint a session for a suspended student; the code is already spent.
       if (existing?.status === "suspended") return status(403, { error: "account_suspended" })
+      // Only a brand-new account can be attributed to an invite, and only if the link's owner is a real, active student
+      // (never the person themselves). An existing member opening someone's link changes nothing.
+      let referredBy: string | null = null
+      if (!existing && body.invite) {
+        const [inviter] = await db.select({ id: users.id, status: users.status, email: users.email }).from(users).where(eq(users.inviteCode, body.invite)).limit(1)
+        if (inviter && inviter.status === "active" && inviter.email !== email) referredBy = inviter.id
+      }
       const user =
         existing ??
         (
@@ -154,6 +161,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
             .values({
               email,
               university,
+              referredBy,
               name: email.split("@")[0]!.replace(/[._-]+/g, " "),
               department: "Unspecified",
               level: 100,
@@ -189,6 +197,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       body: t.Object({
         email: t.String(),
         code: t.String({ pattern: "^[0-9]{6}$" }),
+        invite: t.Optional(t.String({ pattern: "^[a-f0-9]{10}$" })),
       }),
     },
   )

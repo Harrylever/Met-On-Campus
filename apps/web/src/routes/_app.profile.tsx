@@ -10,6 +10,7 @@ import { PhotoField } from '~/components/PhotoField'
 import { DeleteAccount } from '~/components/DeleteAccount'
 import { EmailAlerts } from '~/components/EmailAlerts'
 import { InstallCard } from '~/components/InstallApp'
+import { ProgressCard } from '~/components/ProgressCard'
 import { PushNotifications } from '~/components/PushNotifications'
 import { forgetThisDevice } from '~/lib/push'
 import { looksLikeMatric, validPersonName } from '~/lib/name'
@@ -46,6 +47,8 @@ function Profile() {
   return (
     <div data-intent={mode} className="flex flex-col gap-5">
       <h1 className="text-[28px] font-bold leading-[34px]">Your profiles</h1>
+
+      <ProgressCard />
 
       <section className="card space-y-3">
         <span className="label">About you (shown on every mode)</span>

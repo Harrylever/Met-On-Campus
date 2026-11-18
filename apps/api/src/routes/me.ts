@@ -4,6 +4,7 @@ import { intentProfiles, users } from "@moc/db"
 import { authed, publicSelf } from "../auth"
 import { db } from "../context"
 import { canonical, departmentsFor, spotsFor, tidy, validPersonName } from "../lists"
+import { onProfileSaved } from "../rewards/events"
 
 const Intent = t.Union([
   t.Literal("study"),
@@ -100,6 +101,7 @@ export const meRoutes = new Elysia({ prefix: "/me" })
           set: values,
         })
         .returning()
+      await onProfileSaved(user.id, params.intent, row!)
       return { profile: row }
     },
     { params: t.Object({ intent: Intent }), body: ProfileBody },

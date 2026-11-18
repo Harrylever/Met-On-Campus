@@ -4,6 +4,7 @@ import { roomMembers, rooms, users } from '@moc/db'
 import { authed, publicSelf } from '../auth'
 import { bus, db, topics } from '../context'
 import { blockedWith, isBlockedBetween } from '../blocks'
+import { onRoomMemberApproved } from '../rewards/events'
 
 const RoomIntent = t.Union([t.Literal('study'), t.Literal('friends')])
 
@@ -78,6 +79,7 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
       return m ? { code: 200 as const } : { code: 404 as const }
     })
     if (out.code !== 200) return status(out.code, { error: 'error' in out && out.error ? out.error : 'not_found' })
+    if (body.decision === 'approved') await onRoomMemberApproved(params.id, params.userId)
     bus.publish(topics.user(params.userId), { type: 'room.decision', roomId: params.id, decision: body.decision })
     return { ok: true }
   }, { body: t.Object({ decision: t.Union([t.Literal('approved'), t.Literal('declined')]) }) })
