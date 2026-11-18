@@ -9,8 +9,8 @@ const steps = [
   { t: 'Meet on campus', d: 'Suggest a public spot like the library or the Student Union cafeteria, pick a time, and the other person accepts or says no.' },
 ]
 const modes: { id: string; name: string; lead: string; points: string[] }[] = [
-  { id: 'study', name: 'Study', lead: 'Find someone to revise with.', points: ['Match on the courses you share', 'Join a study room at the library or ICT Centre', 'Find people for a group project'] },
-  { id: 'friends', name: 'Friends', lead: 'People who like what you like.', points: ['Clubs, sport, food and film nights', 'Say hi to someone with the same interests', 'Join a hangout at the school field or the cafeteria'] },
+  { id: 'study', name: 'Study', lead: 'Find someone to read with.', points: ['Match on the courses you share', 'Join a study room at the library or ICT Centre', 'Find people for a group assignment'] },
+  { id: 'friends', name: 'Friends', lead: 'People who like what you like.', points: ['Clubs, football, food and movie nights', 'Say hi to someone with the same interests', 'Join a hangout at the school field or the cafeteria'] },
   { id: 'romance', name: 'Romance', lead: 'Private by default.', points: ['You only see people who also turned Romance on', 'Hide your profile from your own department', 'Meet one to one, in public places only'] },
 ]
 const safety = [
@@ -41,7 +41,7 @@ export default function Home() {
       <section className="container-x grid items-center gap-12 pb-16 pt-12 md:pb-24 md:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
         <div>
           <h1 className="text-[clamp(2.9rem,7.2vw,5.4rem)] tracking-[-0.035em]">Find your people on campus.</h1>
-          <p className="mt-6 max-w-[48ch] text-lg text-ink-2 sm:text-xl">Met On Campus is for university students who want a study partner, a five-a-side team, or someone to walk the quad with. Verify with your school email, choose what you are here for, and meet in public places on campus.</p>
+          <p className="mt-6 max-w-[48ch] text-lg text-ink-2 sm:text-xl">Met On Campus is for university students who want a study partner, a football team for Saturday, or someone to gist with after lectures. Verify with your school email, choose what you are here for, and meet in public places on campus.</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a href={site.appUrl} className="btn">Open the app</a>
             <a href="#how-it-works" className="btn-quiet">See how it works</a>
@@ -93,7 +93,7 @@ export default function Home() {
           <ul className="divide-y divide-line border-y border-line">
             {[
               { id: 'study', tag: 'CSS 411', title: 'Network Security Past Questions', place: 'University Library', time: 'Until 5:30 PM', seats: '3 of 5 spots taken', live: true },
-              { id: 'friends', tag: 'Football', title: 'Five-a-Side Kickabout', place: 'School Field', time: 'Until 6:00 PM', seats: '7 of 10 spots taken', live: true },
+              { id: 'friends', tag: 'Football', title: 'Saturday Football Match', place: 'School Field', time: 'Until 6:00 PM', seats: '7 of 10 spots taken', live: true },
               { id: 'study', tag: 'CPT 315', title: 'Database Design Group Project', place: 'ICT Centre, Lab B', time: 'Today, 4:00 PM', seats: '2 of 4 spots taken', live: false },
             ].map((r) => (
               <li key={r.title} data-intent={r.id} className="flex items-start justify-between gap-4 py-4">

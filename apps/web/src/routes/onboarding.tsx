@@ -18,7 +18,7 @@ export const Route = createFileRoute('/onboarding')({ ssr: false,
 })
 
 const BLURB: Record<Intent, string> = {
-  study: 'Study partners, group projects and course rooms.',
+  study: 'Study partners, group assignments and course rooms.',
   friends: 'Clubs, sport, food and people to hang out with.',
   romance: 'Private by default. Shown only to students who also turned it on.',
 }

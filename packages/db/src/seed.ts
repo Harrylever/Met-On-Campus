@@ -64,8 +64,8 @@ const CAST: Seed[] = [
     level: 300,
     modes: {
       study: {
-        prompt: "Need two people for the CPT 315 group project before Friday.",
-        bio: "Handles the backend on most group projects. Brings a spare charger.",
+        prompt: "Need two people for the CPT 315 group assignment before Friday.",
+        bio: "Handles the backend on most group assignments. Brings a spare charger.",
         tags: ["CPT 315", "CSS 411", "Group project"],
         free: "Weekdays after 2:00 PM",
         spot: "ICT Centre",
@@ -93,7 +93,7 @@ const CAST: Seed[] = [
     modes: {
       friends: {
         prompt:
-          "Five-a-side at the school field on Saturdays. We need a keeper.",
+          "Football at the school field on Saturdays. We need a goalkeeper.",
         bio: "Plays midfield, loses at chess, shows up on time.",
         tags: ["Football", "Chess club"],
         free: "Saturdays from 4:00 PM",
@@ -121,7 +121,7 @@ const CAST: Seed[] = [
     level: 400,
     modes: {
       romance: {
-        prompt: "Someone to walk the Faculty Quad with after evening lectures.",
+        prompt: "Someone to gist with after evening lectures.",
         bio: "Writes on weekends. Prefers long conversations to loud places.",
         tags: ["Afrobeats", "Poetry"],
         free: "Evenings after 5:00 PM",
@@ -143,7 +143,7 @@ const CAST: Seed[] = [
     modes: {
       romance: {
         prompt:
-          "Coffee at the Senate Building Lounge and an honest conversation.",
+          "A cold drink at the Senate Building Lounge and an honest conversation.",
         bio: "Final-year engineer. Makes a careful cup of coffee.",
         tags: ["Coffee", "Long walks", "Poetry"],
         free: "Weekend mornings",
