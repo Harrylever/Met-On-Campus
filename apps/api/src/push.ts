@@ -23,7 +23,7 @@ export function allowedEndpoint(raw: string) {
 // ---- What a notification says ---------------------------------------------------------------------------------------
 // Lock screens are seen by other people, so the text is deliberately generic: no names, no messages, no mode. (The URL it
 // opens is inside the notification's data and is never displayed.)
-export type PushKind = 'invite' | 'message' | 'room'
+export type PushKind = 'invite' | 'message' | 'room' | 'badge'
 export type Notice = { kind: PushKind; body: string; url: string }
 type Ev = Record<string, any>
 
@@ -36,6 +36,7 @@ export function noticeFor(e: Ev): Notice | null {
     case 'room.request': return { kind: 'room', body: 'Someone asked to join your room', url: '/rooms' }
     case 'room.decision': return { kind: 'room', body: 'Your room request was answered', url: '/rooms' }
     case 'room.updated': return { kind: 'room', body: 'A room you joined was changed', url: '/rooms' }
+    case 'badge.earned': return { kind: 'badge', body: 'You earned a new badge', url: '/progress' } // never names the badge: it is a lock screen
     case 'room.cancelled': return { kind: 'room', body: 'A room you joined was cancelled', url: '/rooms' }
     default: return null
   }

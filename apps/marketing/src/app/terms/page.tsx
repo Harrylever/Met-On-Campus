@@ -32,7 +32,7 @@ export default function Terms() {
         <li>send spam, advertising or anything unrelated to meeting other students;</li>
         <li>share sexual content, hate speech, or anything illegal;</li>
         <li>ask for or share someone&apos;s private information without their consent;</li>
-        <li>earn points unfairly, for example with extra accounts, fake invitations or by misusing invite links;</li>
+        <li>earn points or badges unfairly, for example with extra accounts, fake invitations or by misusing invite links;</li>
         <li>try to break, scrape, overload or get around the app&apos;s protections, or use it to build another service.</li>
       </ul>
 

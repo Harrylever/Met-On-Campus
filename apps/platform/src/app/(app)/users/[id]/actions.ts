@@ -27,6 +27,15 @@ export async function deleteUser(userId: string, _: State, fd: FormData): Promis
 }
 
 /** Undo an award (abuse or a mistake). Needs a written reason; the row stays on record, marked reversed. */
+export async function revokeBadge(badge: string, userId: string, _: State, fd: FormData): Promise<State> {
+  const note = String(fd.get('note') ?? '').trim()
+  if (note.length < 5) return { error: 'Add a short written reason (at least 5 characters).' }
+  const r = await adminApi<{ error?: string }>(`/admin/users/${userId}/badges/${encodeURIComponent(badge)}/revoke`, { body: { note } })
+  if (!r.ok) return { error: r.data?.error === 'not_found' ? 'This badge was already taken back. Refresh the page.' : 'Could not take it back. Try again.' }
+  revalidatePath(`/users/${userId}`)
+  return { done: true }
+}
+
 export async function reversePoints(eventId: string, userId: string, _: State, fd: FormData): Promise<State> {
   const note = String(fd.get('note') ?? '').trim()
   if (note.length < 5) return { error: 'Add a short written reason (at least 5 characters).' }

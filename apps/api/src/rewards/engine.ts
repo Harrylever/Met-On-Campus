@@ -1,11 +1,13 @@
 import { and, count, desc, eq, gte, inArray, isNull, lt, sql, sum } from 'drizzle-orm'
-import { dailyCheckins, intentProfiles, pointEvents, userProgress, users } from '@moc/db'
+import { dailyCheckins, intentProfiles, pointEvents, userBadges, userProgress, users } from '@moc/db'
 import { db } from '../context'
 import { env } from '../env'
+import { BADGES, syncBadges } from './badges'
 import { DAILY_CAP, INVITES_PER_MONTH, INVITE_ACTIVE_DAYS, REPEATABLE, RULES, STREAK_MILESTONES, type Kind } from './rules'
 import { addDays, daysBetween, monthStart, nextMonthStart, watDay, watMonth } from './time'
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+const BADGE_TOTAL = BADGES.length
 export type Awarded = { kind: Kind; points: number }
 
 /** One person's awards and streak are changed one at a time, so caps and streaks are exact even when requests overlap. */
@@ -77,6 +79,8 @@ export async function checkIn(userId: string, now: Date = new Date()): Promise<C
   })
   // A friend's invite can come true on a check-in (their third day). Done outside the lock: it touches the inviter too.
   if (!out.alreadyCheckedIn) { const more = await qualifyInvite(userId, now); out.awarded.push(...more); out.pointsTotal += more.reduce((n, m) => n + m.points, 0) }
+  // Opening the app is also when badges for things done earlier (before badges existed) are noticed.
+  await syncBadges(userId).catch((err) => console.error('[badges] sync failed', err))
   return out
 }
 
@@ -95,7 +99,7 @@ export async function qualifyInvite(inviteeId: string, now: Date = new Date()): 
   if ((days?.n ?? 0) < INVITE_ACTIVE_DAYS) return []
   const mine = await award(inviteeId, 'invited_by_friend', 'invited', now)
   const [inviter] = await db.select({ status: users.status }).from(users).where(eq(users.id, u.referredBy)).limit(1)
-  if (inviter?.status === 'active') await award(u.referredBy, 'invite_friend', `invite:${inviteeId}`, now)
+  if (inviter?.status === 'active') { await award(u.referredBy, 'invite_friend', `invite:${inviteeId}`, now); await syncBadges(u.referredBy).catch((err) => console.error('[badges] sync failed', err)) }
   return mine ? [mine] : []
 }
 
@@ -111,11 +115,13 @@ export async function progressOf(userId: string, now: Date = new Date()) {
   const [invited] = await db.select({ n: count() }).from(users).where(eq(users.referredBy, userId))
   const [qualified] = await db.select({ n: count() }).from(pointEvents).where(and(eq(pointEvents.userId, userId), eq(pointEvents.kind, 'invite_friend'), isNull(pointEvents.reversedAt)))
   const [monthUsed] = await db.select({ n: count() }).from(pointEvents).where(and(eq(pointEvents.userId, userId), eq(pointEvents.kind, 'invite_friend'), isNull(pointEvents.reversedAt), gte(pointEvents.day, monthStart(month)), lt(pointEvents.day, nextMonthStart(month))))
+  const [badgeCount] = await db.select({ n: count() }).from(userBadges).where(and(eq(userBadges.userId, userId), isNull(userBadges.revokedAt)))
   const streakAlive = p?.lastActiveDay && daysBetween(p.lastActiveDay, today) <= 2 // still reachable today (a rest day can cover one gap)
   return {
     today,
     points: p?.pointsTotal ?? 0,
     streak: { current: streakAlive ? p!.streakCurrent : 0, best: p?.streakBest ?? 0, checkedInToday: p?.lastActiveDay === today, restAvailable: restAvailable(p?.lastRestOn ?? null, today) },
+    badges: { earned: badgeCount?.n ?? 0, total: BADGE_TOTAL },
     week: weekDays.map((d) => ({ day: d, active: active.has(d) })),
     recent: recent.map((r) => ({ id: r.id, label: RULES[r.kind as Kind]?.label ?? r.kind, points: r.points, day: r.day })),
     invite: { code: me!.inviteCode, url: `${env.webOrigin}/login?invite=${me!.inviteCode}`, invited: invited?.n ?? 0, rewarded: qualified?.n ?? 0, pending: Math.max(0, (invited?.n ?? 0) - (qualified?.n ?? 0)), monthUsed: monthUsed?.n ?? 0, monthMax: INVITES_PER_MONTH, activeDays: INVITE_ACTIVE_DAYS },

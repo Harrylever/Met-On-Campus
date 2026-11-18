@@ -274,6 +274,18 @@ export const pointEvents = pgTable('point_events', {
   index('point_events_day_idx').on(t.userId, t.day),
 ])
 
+// Badges are recognition for things a student has really done (see apps/api/src/rewards/badges.ts for the catalogue and the
+// rules). A row means "earned". `seenAt` drives the "new badge" notice. A revoked badge keeps its row, so it is never re-granted.
+export const userBadges = pgTable('user_badges', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  badge: text('badge').notNull(),
+  earnedAt: timestamp('earned_at', { withTimezone: true }).notNull().defaultNow(),
+  seenAt: timestamp('seen_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  revokedBy: uuid('revoked_by'), // admin_users.id (no FK so deleting an admin keeps the history)
+  revokedNote: text('revoked_note'),
+}, (t) => [primaryKey({ columns: [t.userId, t.badge] })])
+
 // ---- Platform (staff) ----------------------------------------------------------------------------
 // Staff are separate from students: own table, own sessions, own audit trail. Created only by the
 // `admin:invite` CLI; there is no public sign-up. Secrets are never stored in plain text:

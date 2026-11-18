@@ -15,7 +15,7 @@ import { adminRoutes } from "./admin/routes"
 import { adminList } from "./admin/lists"
 import { adminDepartmentRequests } from "./admin/department-requests"
 import { adminPhotos } from "./admin/photos"
-import { adminRewards } from "./admin/rewards"
+import { adminBadges, adminRewards } from "./admin/rewards"
 import { photoRoutes } from "./routes/photos"
 import { accountRoutes } from "./routes/account"
 import { alertRoutes } from "./routes/alerts"
@@ -56,6 +56,7 @@ export const app = new Elysia()
   .use(adminDepartmentRequests)
   .use(adminPhotos)
   .use(adminRewards)
+  .use(adminBadges)
 
 // The web app imports this type for Eden Treaty. Nothing else from the api leaks to the client.
 export type App = typeof app

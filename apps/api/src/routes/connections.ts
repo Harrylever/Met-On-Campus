@@ -9,6 +9,7 @@ import { blockedWith, isBlockedBetween } from '../blocks'
 import { approvedPhotoIds, romanceMatched } from '../photos'
 import { between, pairRequest, type Req } from '../requests'
 import { onConnectionAccepted, onMeetupAccepted } from '../rewards/events'
+import { newBadgesOf } from '../rewards/badges'
 
 const Intent = t.Union([t.Literal('study'), t.Literal('friends'), t.Literal('romance')])
 type User = typeof users.$inferSelect
@@ -105,7 +106,7 @@ export const connectionRoutes = new Elysia().use(authed)
       .where(and(eq(rooms.hostId, user.id), eq(roomMembers.status, 'pending'), isNull(rooms.cancelledAt), gt(rooms.endsAt, now)))
     const [news] = await db.select({ n: sql<number>`count(*)::int` }).from(roomMembers).innerJoin(rooms, eq(rooms.id, roomMembers.roomId))
       .where(and(eq(roomMembers.userId, user.id), ne(rooms.hostId, user.id), gt(rooms.endsAt, now), isNull(roomMembers.decisionSeenAt), or(ne(roomMembers.status, 'pending'), sql`${rooms.cancelledAt} is not null`)))
-    return { byIntent, total: byIntent.study + byIntent.friends + byIntent.romance, requests, rooms: (waiting?.n ?? 0) + (news?.n ?? 0) }
+    return { byIntent, total: byIntent.study + byIntent.friends + byIntent.romance, requests, rooms: (waiting?.n ?? 0) + (news?.n ?? 0), badges: await newBadgesOf(user.id) }
   })
 
   .get('/conversations/:id/messages', async ({ user, params, status }) => {

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '~/lib/api'
 import { Skeleton } from '~/components/Skeleton'
 
@@ -63,6 +63,8 @@ function Progress() {
           )}
         </section>
 
+        <BadgeShelf today={p.today} />
+
         <InviteCard invite={p.invite} />
 
         <details className="card text-sm">
@@ -101,6 +103,56 @@ function InviteCard({ invite }: { invite: Invite }) {
       </div>
       <p role="status" className="min-h-5 text-sm text-ink-2">{note}</p>
       <p className="text-sm text-ink-2">Joined with your link: <b className="text-ink">{invite.invited}</b>. Earned points: <b className="text-ink">{invite.rewarded}</b>. Still settling in: <b className="text-ink">{invite.pending}</b>. This month: <b className="text-ink">{invite.monthUsed}/{invite.monthMax}</b>.</p>
+    </section>
+  )
+}
+
+const GROUPS: Record<string, string> = { start: 'Getting started', connect: 'Connecting', rooms: 'Rooms and meetups', streak: 'Streaks', invite: 'Inviting' }
+
+// Every badge, earned or not, so you can see what is left. Badges pay no points and nothing in Romance earns one.
+function BadgeShelf({ today }: { today: string }) {
+  const qc = useQueryClient()
+  const q = useQuery({ queryKey: ['badges'], queryFn: () => unwrap(api.me.badges.get()) })
+  const shelf = q.data
+  const hasNew = !!shelf?.badges.some((b) => b.isNew)
+  // New badges stay marked "New" while you are on this page, then count as seen when you leave it.
+  useEffect(() => {
+    if (!hasNew) return
+    return () => { void unwrap(api.me.badges.seen.post()).then(() => { void qc.invalidateQueries({ queryKey: ['unread'] }); void qc.invalidateQueries({ queryKey: ['badges'] }) }) }
+  }, [hasNew, qc])
+  return (
+    <section className="card space-y-4" aria-labelledby="badges-heading">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="badges-heading" className="text-[17px] font-semibold">Badges</h2>
+        {shelf && <p className="text-sm text-ink-2">{shelf.earned} of {shelf.total} earned</p>}
+      </div>
+      {q.isError && <p role="alert" className="text-sm text-danger">Could not load your badges. Try again in a moment.</p>}
+      {!shelf && !q.isError && <div aria-hidden="true"><Skeleton className="h-32 w-full !rounded-[12px]" /></div>}
+      {shelf && Object.entries(GROUPS).map(([group, title]) => (
+        <div key={group} className="space-y-2">
+          <h3 className="text-sm font-semibold text-ink-2">{title}</h3>
+          <ul className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+            {shelf.badges.filter((b) => b.group === group).map((b) => {
+              const earned = b.earnedAt !== null
+              return (
+                <li key={b.id} className={`flex items-start gap-3 rounded-[12px] border p-3 ${earned ? 'border-line bg-subtle' : 'border-dashed border-line'}`}>
+                  <span aria-hidden="true" className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-full ${earned ? 'bg-ink text-white' : 'border border-dashed border-line text-ink-3'}`}>
+                    {earned ? <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m4.5 10.5 3.5 3.5 7.5-8" /></svg> : <span className="size-1.5 rounded-full bg-current" />}
+                  </span>
+                  <span className="min-w-0 text-sm">
+                    <span className={`block font-semibold ${earned ? '' : 'text-ink-2'}`}>
+                      {b.name}{b.isNew && <span className="ml-2 rounded-full bg-ink px-2 py-0.5 text-[11px] font-semibold text-white">New</span>}
+                      <span className="sr-only">{earned ? ', earned' : ', not earned yet'}</span>
+                    </span>
+                    <span className="block text-ink-2">{earned ? `Earned ${when(ymd(b.earnedAt), today)}. ` : ''}{b.how}</span>
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
+      <p className="text-xs text-ink-2">Badges are just for fun: they do not give points. If a badge was earned unfairly, staff can take it back.</p>
     </section>
   )
 }

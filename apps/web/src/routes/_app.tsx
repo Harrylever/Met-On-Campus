@@ -40,6 +40,9 @@ function Shell() {
   // A new streak milestone, a rest day that saved your streak, or joining through a friend is worth saying.
   const qc = useQueryClient()
   const [reward, setReward] = useState<string | null>(null)
+  // Badges earned but not looked at yet. Looking at them (the Progress page) or dismissing the notice marks them seen.
+  const [badgeGone, setBadgeGone] = useState(false)
+  const newBadges = unread.data?.badges ?? []
   useEffect(() => {
     let last = 0
     const run = async () => {
@@ -83,6 +86,12 @@ function Shell() {
         <div role="status" className="mb-4 flex items-center justify-between gap-3 rounded-[12px] border border-line bg-subtle p-3 text-sm">
           <span>{reward} <Link to="/progress" className="font-semibold underline underline-offset-2">See your progress</Link></span>
           <button type="button" className="btn btn-ghost h-9 px-3 text-sm" onClick={() => setReward(null)}>Dismiss</button>
+        </div>
+      )}
+      {newBadges.length > 0 && !badgeGone && path !== '/progress' && (
+        <div role="status" className="mb-4 flex items-center justify-between gap-3 rounded-[12px] border border-line bg-subtle p-3 text-sm">
+          <span>{newBadges.length === 1 ? <>You earned the <b>{newBadges[0]!.name}</b> badge.</> : <>You earned {newBadges.length} new badges.</>}{' '}<Link to="/progress" className="font-semibold underline underline-offset-2">See your badges</Link></span>
+          <button type="button" className="btn btn-ghost h-9 px-3 text-sm" onClick={() => { setBadgeGone(true); void unwrap(api.me.badges.seen.post()).then(() => qc.invalidateQueries({ queryKey: ['unread'] })).finally(() => setBadgeGone(false)) }}>Dismiss</button>
         </div>
       )}
       {looksLikeMatric(me.user.name) && (

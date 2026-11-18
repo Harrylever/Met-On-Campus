@@ -4,6 +4,7 @@ import { adminApi } from '~/lib/admin-api'
 import { ago, title, when } from '~/lib/format'
 import { DeleteAccountForm } from './DeleteAccountForm'
 import { ReversePoints } from './ReversePoints'
+import { RevokeBadge } from './RevokeBadge'
 import { SuspensionForm } from './SuspensionForm'
 
 export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
@@ -54,6 +55,18 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
               <li key={e.id} className="py-2">
                 <div className={`flex items-baseline justify-between gap-3 ${e.reversed ? 'text-ink-3 line-through' : ''}`}><span>{e.label}</span><span className="shrink-0">{e.points > 0 ? '+' : ''}{e.points} · {e.day}</span></div>
                 {e.reversed ? <p className="text-xs text-ink-2">Reversed: {e.reversalNote}</p> : <ReversePoints eventId={e.id} userId={u.id} />}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="card"><h2 className="mb-3 text-lg font-semibold">Badges</h2>
+        {d.rewards.badges.length === 0 ? <p className="text-sm text-ink-2">No badges yet.</p> : (
+          <ul className="divide-y divide-line text-sm">
+            {d.rewards.badges.map((b: any) => (
+              <li key={b.id} className="py-2">
+                <div className={`flex items-baseline justify-between gap-3 ${b.revoked ? 'text-ink-3 line-through' : ''}`}><span>{b.name}</span><span className="shrink-0">{String(b.earnedAt).slice(0, 10)}</span></div>
+                {b.revoked ? <p className="text-xs text-ink-2">Taken back: {b.revokedNote}</p> : <RevokeBadge badge={b.id} userId={u.id} />}
               </li>
             ))}
           </ul>
