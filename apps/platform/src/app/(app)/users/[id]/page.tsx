@@ -50,6 +50,19 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
           <Row k="People they invited" v={d.rewards.invited} />
           <Row k="On the weekly leaderboard" v={d.rewards.onLeaderboard ? 'Yes' : 'No'} />
         </dl>
+        {d.rewards.invitees.length > 0 && (
+          <div className="mb-4">
+            <h3 className="mb-1 text-sm font-semibold">People they invited</h3>
+            <ul className="divide-y divide-line text-sm">
+              {d.rewards.invitees.map((i: any) => (
+                <li key={i.id} className="flex items-baseline justify-between gap-3 py-1.5">
+                  <Link href={`/users/${i.id}`} className="underline underline-offset-2">{i.name}</Link>
+                  <span className="shrink-0 text-ink-2">{String(i.joinedAt).slice(0, 10)} · {i.activeDays} active {i.activeDays === 1 ? 'day' : 'days'} · {i.paid ? 'paid out' : i.status === 'suspended' ? 'suspended' : 'not yet'}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {d.rewards.ledger.length === 0 ? <p className="text-sm text-ink-2">Nothing earned yet.</p> : (
           <ul className="divide-y divide-line text-sm">
             {d.rewards.ledger.map((e: any) => (

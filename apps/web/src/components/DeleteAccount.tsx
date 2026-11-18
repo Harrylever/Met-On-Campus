@@ -62,7 +62,7 @@ export function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
     return (
       <section className="card space-y-2" aria-labelledby="delete-heading">
         <h2 id="delete-heading" className="text-[17px] font-semibold">Delete your account</h2>
-        <p className="text-sm text-ink-2">Permanently remove your profiles, photos and messages. This cannot be undone.</p>
+        <p className="text-sm text-ink-2">Permanently remove your profiles, photos, messages, points and badges. This cannot be undone.</p>
         <button ref={opener} type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>Delete my account…</button>
       </section>
     )
@@ -72,7 +72,7 @@ export function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
       <h2 ref={head} tabIndex={-1} id="delete-heading" className="text-[17px] font-semibold outline-none">Delete your account</h2>
       <div className="space-y-2 text-sm">
         <p className="font-semibold">This is permanent and cannot be undone.</p>
-        <p><b>We delete:</b> your profiles and photos, your chats and the messages in them (including the other person&apos;s side of those chats), your invitations, and your sign-in. Rooms you host are cancelled and the people in them are told.</p>
+        <p><b>We delete:</b> your profiles and photos, your points, streak and badges (and your place on the leaderboard), your chats and the messages in them (including the other person&apos;s side of those chats), your invitations, and your sign-in. Rooms you host are cancelled and the people in them are told.</p>
         <p><b>We keep:</b> reports and safety records, because deleting an account must not erase them. They no longer link to you; a report about you keeps only your name and university. Access logs stay too, and they do not contain your email.</p>
         <p className="text-ink-2">You can join again later, but as a new account with nothing carried over.</p>
       </div>

@@ -7,7 +7,7 @@ import { addDays, daysBetween, watDay, weekStart } from './time'
 // nobody can look at the board without being on it. It shows a first name and a level and nothing else (no photo, department
 // or link to a profile), only people at the same university, and only points from this Nigerian week (Monday to Sunday). The
 // ranking is read straight from the points ledger, so there is nothing to reset and a staff reversal counts at once.
-// Romance never earns points, so it can never move anyone on this board.
+// Blocked people (either way) never appear to each other. Romance never earns points, so it can never move anyone on this board.
 
 export const BOARD_SIZE = 10
 
@@ -37,6 +37,8 @@ export async function leaderboardOf(userId: string, now: Date = new Date()) {
       join users u on u.id = p.user_id
       join point_events e on e.user_id = u.id and e.reversed_at is null and e.day >= ${start} and e.day < ${next}
       where p.leaderboard_opt_in and u.university = ${me.university} and u.status = 'active'
+        -- Blocking works both ways everywhere else in the app, so it does here: you never see someone you blocked or who blocked you.
+        and not exists (select 1 from blocks b where (b.blocker_id = ${userId} and b.blocked_id = u.id) or (b.blocker_id = u.id and b.blocked_id = ${userId}))
       group by u.id, u.name, u.level
       having sum(e.points) > 0)
     select id, name, level, pts, rank, (select count(*)::int from board) as total from board

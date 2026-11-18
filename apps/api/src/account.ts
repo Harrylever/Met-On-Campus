@@ -9,8 +9,9 @@ export type DeletedBy = { kind: 'self' } | { kind: 'staff'; adminId: string; rea
 
 /**
  * Permanently removes a student and everything that is theirs: profile, photos (files too), chats and the messages in
- * them, requests, rooms they host (people with a place or waiting are told it is cancelled), blocks, sessions and
- * presence. Reports and moderation records stay, with the link to the account cleared, because deleting an account
+ * them, requests, rooms they host (people with a place or waiting are told it is cancelled), blocks, sessions,
+ * presence, and their points, streak, badges and leaderboard entry. Friends they invited keep what they earned; the
+ * link back to this account is cleared. Reports and moderation records stay, with the link to the account cleared, because deleting an account
  * must not erase safety evidence: a report about them keeps only their name and campus. The deletion is audited with the
  * account id and campus, never the email or name. Returns false if there was no such account.
  */

@@ -45,7 +45,7 @@ export default function Privacy() {
 
       <h2>How long we keep it</h2>
       <p>We keep your data while your account is active. If you remove or replace a photo, or we do not approve it, the stored file is deleted straight away.</p>
-      <p>When you delete your account, we delete your profiles, photos, invitations and sign-in details, the chats you were part of and the messages in them (including the other person&apos;s side of those chats), and any rooms you host are cancelled. This happens immediately, and cannot be undone.</p>
+      <p>When you delete your account, we delete your profiles, photos, invitations, points, streak, badges, leaderboard entry, invite link and sign-in details, the chats you were part of and the messages in them (including the other person&apos;s side of those chats), and any rooms you host are cancelled. This happens immediately, and cannot be undone.</p>
       <p>Some records stay, because deleting an account must not erase evidence of abuse. Reports, and our records of what we did about them, are kept, but they no longer link to an account. A report about you keeps only your name and your university, and the reporter&apos;s account link is removed if they delete theirs. The text of a message that was reported is kept with that report. Our staff access log is also kept; it records that an account was deleted and when, but not your email address or name. We may also keep information where the law requires it.</p>
 
       <h2>Your choices and rights</h2>

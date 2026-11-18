@@ -144,8 +144,14 @@ export const adminRoutes = new Elysia({ prefix: '/admin' }).use(adminAuthed)
     // Points and streak: a ledger of what was earned and why, who invited this student, and who they invited.
     const [prog] = await db.select().from(userProgress).where(eq(userProgress.userId, u.id)).limit(1)
     const [referrer] = u.referredBy ? await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, u.referredBy)).limit(1) : []
+    // Who they invited, newest first, and whether each friend has paid out yet (a farming check: many accounts, few active days).
+    const invitees = (await db.execute(sql`
+      select i.id, i.name, i.created_at as "joinedAt", i.status,
+             (select count(*)::int from daily_checkins c where c.user_id = i.id) as "activeDays",
+             exists (select 1 from point_events e where e.user_id = ${u.id} and e.key = 'invite:' || i.id and e.reversed_at is null) as paid
+      from users i where i.referred_by = ${u.id} order by i.created_at desc limit 50`)) as unknown as { id: string; name: string; joinedAt: Date; status: string; activeDays: number; paid: boolean }[]
     const [invitedCount] = await db.select({ n: count() }).from(users).where(eq(users.referredBy, u.id))
-    const rewards = { points: prog?.pointsTotal ?? 0, streakCurrent: prog?.streakCurrent ?? 0, streakBest: prog?.streakBest ?? 0, lastActiveDay: prog?.lastActiveDay ?? null, referredBy: referrer ?? null, invited: invitedCount?.n ?? 0, ledger: await ledgerOf(u.id), badges: await badgesForStaff(u.id), onLeaderboard: !!prog?.leaderboardOptIn }
+    const rewards = { points: prog?.pointsTotal ?? 0, streakCurrent: prog?.streakCurrent ?? 0, streakBest: prog?.streakBest ?? 0, lastActiveDay: prog?.lastActiveDay ?? null, referredBy: referrer ?? null, invited: invitedCount?.n ?? 0, invitees, ledger: await ledgerOf(u.id), badges: await badgesForStaff(u.id), onLeaderboard: !!prog?.leaderboardOptIn }
     // Staff see counts and metadata about conversations, never their content. Only report snapshots carry text.
     return {
       rewards,
