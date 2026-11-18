@@ -54,6 +54,7 @@ function Discover() {
   const total = feed.data?.total ?? 0
   const depts = [...new Set([...(meta.data?.departments ?? []), ...(dept ? [dept] : []), ...cards.map((x) => x.department)])]
   const filtered = !!(dept || level || q)
+  const mine = me.user.department !== 'Unspecified' && depts.includes(me.user.department) ? me.user.department : ''
 
   return (
     <div data-intent={intent} className="flex flex-col gap-5 lg:grid lg:grid-cols-[320px_1fr] lg:items-start lg:gap-8">
@@ -69,10 +70,16 @@ function Discover() {
           <span className="sr-only">Search students</span>
           <input type="search" className="input" placeholder="Search by name, course or interest" value={search} maxLength={60} onChange={(e) => setSearch(e.target.value)} />
         </label>
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="Department">
-          <button className="chip" aria-pressed={!dept} onClick={() => setDept('')}>All departments</button>
-          {depts.map((d) => <button key={d} className="chip" aria-pressed={dept === d} onClick={() => setDept(d)}>{deptLabel(d)}</button>)}
-        </div>
+        {/* A dropdown, not a chip per department: a campus can have 50, which would be a wall of chips. Native, so it scales,
+            uses the phone's own picker, and jumps to a department as you type. Your own comes first. */}
+        <label className="block">
+          <span className="sr-only">Department</span>
+          <select className="input" value={dept} onChange={(e) => setDept(e.target.value)}>
+            <option value="">All departments</option>
+            {mine && <option value={mine}>Your department: {deptLabel(mine)}</option>}
+            {depts.filter((d) => d !== mine).map((d) => <option key={d} value={d}>{deptLabel(d)}</option>)}
+          </select>
+        </label>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="Level">
           <button className="chip" aria-pressed={!level} onClick={() => setLevel('')}>All levels</button>
           {[100, 200, 300, 400, 500].map((l) => <button key={l} className="chip font-mono text-xs" aria-pressed={level === l} onClick={() => setLevel(l)}>{l}L</button>)}

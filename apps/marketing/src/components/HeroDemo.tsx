@@ -7,9 +7,9 @@ const MODES: { id: Mode; label: string }[] = [{ id: 'study', label: 'Study' }, {
 
 // Illustrative profiles (not real students). Copy mirrors what the app actually shows for each mode.
 const PROFILES: Record<Mode, { name: string; line: string; live: boolean; where: string; label: string; prompt: string; tags: string[]; common: string; cta: string }> = {
-  study: { name: 'Amina', line: '400L Cyber Security', live: true, where: 'University Library, Reading Room 2', label: 'Studying this week', prompt: 'Looking for a partner to go through network security past questions.', tags: ['CSS 411', 'CSS 423'], common: '2 courses in common', cta: 'Invite to Study' },
+  study: { name: 'Amina', line: '400L Biochemistry', live: true, where: 'University Library, Reading Room 2', label: 'Studying this week', prompt: 'Looking for a partner to go through biochemistry past questions.', tags: ['BCH 401', 'BCH 412'], common: '2 courses in common', cta: 'Invite to Study' },
   friends: { name: 'Ibrahim', line: '400L Electrical Engineering', live: true, where: 'School Field', label: 'Up for', prompt: 'Football at the school field on Saturdays. We need a goalkeeper.', tags: ['Football', 'Chess club'], common: 'You both follow Chess Club', cta: 'Say Hi' },
-  romance: { name: 'Zainab', line: '400L Information Technology', live: false, where: 'Usually around the faculty in the evening', label: 'Looking for', prompt: 'Someone to gist with after evening lectures.', tags: ['Afrobeats', 'Poetry'], common: 'You both listed Poetry', cta: 'Send Spark' },
+  romance: { name: 'Zainab', line: '400L Agricultural Economics', live: false, where: 'Usually around the faculty in the evening', label: 'Looking for', prompt: 'Someone to gist with after evening lectures.', tags: ['Afrobeats', 'Poetry'], common: 'You both listed Poetry', cta: 'Send Spark' },
 }
 
 export function HeroDemo() {

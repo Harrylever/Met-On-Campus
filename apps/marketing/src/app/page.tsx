@@ -9,7 +9,7 @@ const steps = [
   { t: 'Meet on campus', d: 'Suggest a public spot like the library or the Student Union cafeteria, pick a time, and the other person accepts or says no.' },
 ]
 const modes: { id: string; name: string; lead: string; points: string[] }[] = [
-  { id: 'study', name: 'Study', lead: 'Find someone to read with.', points: ['Match on the courses you share', 'Join a study room at the library or ICT Centre', 'Find people for a group assignment'] },
+  { id: 'study', name: 'Study', lead: 'Find someone to read with.', points: ['Match on the courses you share', 'Join a study room at the library or a quiet spot on campus', 'Find people for a group assignment'] },
   { id: 'friends', name: 'Friends', lead: 'People who like what you like.', points: ['Clubs, football, food and movie nights', 'Say hi to someone with the same interests', 'Join a hangout at the school field or the cafeteria'] },
   { id: 'romance', name: 'Romance', lead: 'Private by default.', points: ['You only see people who also turned Romance on', 'Hide your profile from your own department', 'Meet one to one, in public places only'] },
 ]
@@ -46,7 +46,7 @@ export default function Home() {
             <a href={site.appUrl} className="btn">Open the app</a>
             <a href="#how-it-works" className="btn-quiet">See how it works</a>
           </div>
-          <p className="mt-5 max-w-[48ch] text-[15px] text-ink-3">Only students with a university email can join. We are starting at FUTMinna.</p>
+          <p className="mt-5 max-w-[48ch] text-[15px] text-ink-3">Only students with a university email can join. We are starting at FUTMinna, and every faculty and department is welcome.</p>
         </div>
         <HeroDemo />
       </section>
@@ -92,9 +92,9 @@ export default function Home() {
         <div>
           <ul className="divide-y divide-line border-y border-line">
             {[
-              { id: 'study', tag: 'CSS 411', title: 'Network Security Past Questions', place: 'University Library', time: 'Until 5:30 PM', seats: '3 of 5 spots taken', live: true },
+              { id: 'study', tag: 'MTH 201', title: 'Engineering Maths Past Questions', place: 'University Library', time: 'Until 5:30 PM', seats: '3 of 5 spots taken', live: true },
               { id: 'friends', tag: 'Football', title: 'Saturday Football Match', place: 'School Field', time: 'Until 6:00 PM', seats: '7 of 10 spots taken', live: true },
-              { id: 'study', tag: 'CPT 315', title: 'Database Design Group Project', place: 'ICT Centre, Lab B', time: 'Today, 4:00 PM', seats: '2 of 4 spots taken', live: false },
+              { id: 'study', tag: 'BCH 301', title: 'Enzymes Revision Group', place: 'University Library, Reading Room 1', time: 'Today, 4:00 PM', seats: '2 of 4 spots taken', live: false },
             ].map((r) => (
               <li key={r.title} data-intent={r.id} className="flex items-start justify-between gap-4 py-4">
                 <div>

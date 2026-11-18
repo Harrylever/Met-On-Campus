@@ -24,7 +24,7 @@ export default function Safety() {
       </ul>
 
       <h2>Meetups happen in public</h2>
-      <p>When you suggest meeting, you choose from public campus spots such as the University Library, the ICT Centre or the Student Union cafeteria. You cannot suggest a private address. The other person can accept or decline.</p>
+      <p>When you suggest meeting, you choose from public campus spots such as the University Library, the Senate Building Lounge or the Student Union cafeteria. You cannot suggest a private address. The other person can accept or decline.</p>
       <h3>Tips for meeting someone new</h3>
       <ul>
         <li>Pick a busy time and place, and tell a friend where you are going.</li>

@@ -163,7 +163,7 @@ function RoomForm({ intent, room, onDone }: { intent: 'study' | 'friends'; room?
     <form className="card space-y-3" onSubmit={(e) => { e.preventDefault(); ok && save.mutate() }}>
       <span className="label">{room ? 'Edit this room' : `New ${intent === 'study' ? 'study room' : 'hangout'}`}</span>
       <div className="grid grid-cols-2 gap-3">
-        <label className="text-sm font-semibold">Tag<input className="input mt-2 font-normal" maxLength={24} value={tag} onChange={(e) => setTag(e.target.value)} placeholder={intent === 'study' ? 'CSS 411' : 'Football'} /></label>
+        <label className="text-sm font-semibold">Tag<input className="input mt-2 font-normal" maxLength={24} value={tag} onChange={(e) => setTag(e.target.value)} placeholder={intent === 'study' ? 'MTH 201' : 'Football'} /></label>
         <label className="text-sm font-semibold">Spots<input className="input mt-2 font-normal" type="number" min={minSpots} max={50} value={capacity} onChange={(e) => setCapacity(+e.target.value)} /></label>
       </div>
       {room && room.taken > 1 && <p className="text-xs text-ink-2">{room.taken} people already have a place, so spots cannot go below {room.taken}. They are told about any change.</p>}

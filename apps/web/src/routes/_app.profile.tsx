@@ -169,7 +169,7 @@ function ModeForm({ mode, profile, meta, name, onSaved, onDirty }: { mode: Inten
         </p>
       </div>
       <label className={field}>About<textarea className="input mt-2 h-24 py-2 font-normal" maxLength={400} value={bio} onChange={(e) => setBio(e.target.value)} /></label>
-      <label className={field}>Tags (comma separated, up to 6)<input className="input mt-2 font-normal" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="CSS 411, Football" /></label>
+      <label className={field}>Tags (comma separated, up to 6)<input className="input mt-2 font-normal" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="MTH 201, Football" /></label>
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold">Usually free</legend>
         <div className="flex flex-wrap gap-2">
