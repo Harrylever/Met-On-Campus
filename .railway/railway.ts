@@ -58,6 +58,8 @@ export default defineRailway(() => {
       TRUST_PROXY: "true", // Railway's edge sets X-Real-IP; needed so rate limits are per user, not per proxy
       WEB_ORIGIN: "https://app.metoncampus.xyz", // the single origin allowed by CORS
       ALLOWED_EMAIL_SUFFIXES: ".edu.ng",
+      PUBLIC_API_URL: "https://jeer.metoncampus.xyz", // where email links (unsubscribe) point
+      ALERTS_ENABLED: "true", // "something is waiting" emails; they are off by default outside production
       PRESENCE_TTL_SECONDS: "90",
       EMAIL_FROM: "Met On Campus <noreply@yes.metoncampus.xyz>",
       // Secrets and connection strings stay in Railway; the file only keeps them managed.

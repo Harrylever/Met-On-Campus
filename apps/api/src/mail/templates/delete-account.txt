@@ -1,0 +1,12 @@
+Subject: {{code}} is your code to delete your Met On Campus account
+Preheader: Someone asked to delete your account. Enter this code only if it was you.
+
+Confirm deleting your account
+
+Someone asked to permanently delete your Met On Campus account. To confirm it was you, enter this code:
+
+{{code}}
+
+This cannot be undone. Deleting removes your profiles, photos and messages straight away. The code expires in 10 minutes.
+
+Was this not you? Do not share the code. Ignore this email and your account stays exactly as it is.

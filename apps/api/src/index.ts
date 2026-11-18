@@ -17,6 +17,8 @@ import { adminDepartmentRequests } from "./admin/department-requests"
 import { adminPhotos } from "./admin/photos"
 import { photoRoutes } from "./routes/photos"
 import { accountRoutes } from "./routes/account"
+import { alertRoutes } from "./routes/alerts"
+import { devEmailRoutes } from "./routes/dev-email"
 import { departmentRequestRoutes } from "./routes/department-requests"
 import { adminServiceGate } from "./admin/session"
 import { recordRequest } from "./metrics"
@@ -37,6 +39,8 @@ export const app = new Elysia()
   .use(departmentRequestRoutes)
   .use(photoRoutes)
   .use(accountRoutes)
+  .use(alertRoutes)
+  .use(env.isProd ? new Elysia() : devEmailRoutes) // email previews: development only
   .use(presenceRoutes)
   .use(wsRoutes)
   .use(adminAuthRoutes)

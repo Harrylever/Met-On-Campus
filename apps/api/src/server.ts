@@ -3,6 +3,7 @@ import { env } from './env'
 import { bus, topics } from './context'
 import * as presence from './presence'
 import { assertEmailConfigured } from './email'
+import { startAlerts } from './alerts'
 
 assertEmailConfigured()
 
@@ -18,5 +19,7 @@ setInterval(async () => {
     if (last.get(uni) !== n) { last.set(uni, n); bus.publish(topics.campus(uni), { type: 'presence.count', count: n }) }
   }
 }, 15_000)
+
+startAlerts()
 
 console.log(`api on http://localhost:${env.port}`)

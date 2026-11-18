@@ -18,10 +18,12 @@
     "drizzle-orm": "^0.45.4",
     "elysia": "^1.4.32",
     "ioredis": "^6.0.0",
+    "mustache": "^4.2.0",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
-    "typescript": "^5.9.0",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/mustache": "^4.2.6",
+    "typescript": "^5.9.0"
   }
 }

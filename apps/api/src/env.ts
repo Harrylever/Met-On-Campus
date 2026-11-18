@@ -40,5 +40,9 @@ export const env = {
     virtualHosted: process.env.S3_VIRTUAL_HOSTED === "true",
   },
   uploadDir: process.env.UPLOAD_DIR ?? "uploads",
+  // Where this API is reachable from outside (used in email links, e.g. unsubscribe).
+  publicApiUrl: (process.env.PUBLIC_API_URL ?? (process.env.NODE_ENV === "production" ? "https://jeer.metoncampus.xyz" : `http://localhost:${process.env.PORT ?? process.env.API_PORT ?? 3001}`)).replace(/\/$/, ""),
+  // "Something is waiting" emails run only in production unless switched on (so dev and tests never email or spam the console).
+  alertsEnabled: (process.env.ALERTS_ENABLED ?? (process.env.NODE_ENV === "production" ? "true" : "false")) === "true",
   isProd: process.env.NODE_ENV === "production",
 }

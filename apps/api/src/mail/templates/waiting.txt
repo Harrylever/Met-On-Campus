@@ -1,0 +1,18 @@
+Subject: {{subject}}
+Preheader: Open the app to see what is waiting. No names or details in this email.
+
+Something is waiting for you
+
+While you were away, {{summary}}.
+
+{{#lines}}
+- {{.}}
+{{/lines}}
+
+Open Met On Campus: {{appUrl}}
+
+We do not put names or details in these emails, so they stay private if someone sees your inbox.
+
+{{#unsubscribeUrl}}
+Turn these emails off: {{unsubscribeUrl}} (or change it any time in Profile).
+{{/unsubscribeUrl}}

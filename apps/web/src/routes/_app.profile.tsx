@@ -8,6 +8,7 @@ import { deptLabel } from '~/lib/dept'
 import { DepartmentRequest } from '~/components/DepartmentRequest'
 import { PhotoField } from '~/components/PhotoField'
 import { DeleteAccount } from '~/components/DeleteAccount'
+import { EmailAlerts } from '~/components/EmailAlerts'
 import { looksLikeMatric, validPersonName } from '~/lib/name'
 import { BlockedListSkeleton, LoadingRegion, ProfileFormSkeleton, Skeleton, useSkeleton } from '~/components/Skeleton'
 
@@ -73,6 +74,8 @@ function Profile() {
         ))
         : meta.isError ? <p className="card text-sm text-ink-2" role="alert">Could not load your profile options. Refresh to try again.</p>
         : showSkeleton ? <LoadingRegion label="Loading your profile"><ProfileFormSkeleton /></LoadingRegion> : null}
+
+      <EmailAlerts on={me.settings.emailAlerts} onChanged={() => router.invalidate()} />
 
       <BlockedList />
 

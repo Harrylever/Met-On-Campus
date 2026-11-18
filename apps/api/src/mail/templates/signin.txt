@@ -1,0 +1,10 @@
+Subject: {{code}} is your Met On Campus code
+Preheader: Enter it to confirm your university email. It expires in 10 minutes.
+
+Your sign-in code
+
+Enter this code in Met On Campus to confirm your university email:
+
+{{code}}
+
+It expires in 10 minutes. If you did not ask for it, ignore this email. Nobody can get into your account without this code.

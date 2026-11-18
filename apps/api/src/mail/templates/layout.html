@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>{{subject}}</title>
+<style>
+  body { margin: 0; padding: 0; width: 100% !important; -webkit-text-size-adjust: 100%; }
+  table { border-collapse: collapse; }
+  @media (max-width: 520px) {
+    .px { padding-left: 22px !important; padding-right: 22px !important; }
+    .code { font-size: 30px !important; letter-spacing: 6px !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg-canvas { background-color: #141413 !important; }
+    .bg-card { background-color: #1E1D1B !important; border-color: #34322E !important; }
+    .bg-soft { background-color: #2A2926 !important; }
+    .ink { color: #F5F4F0 !important; }
+    .ink2 { color: #B9B4AA !important; }
+    .btn { background-color: #F5F4F0 !important; }
+    .btn a { color: #141413 !important; }
+    .dot-ring { border-color: #141413 !important; }
+  }
+</style>
+</head>
+<body class="bg-canvas" style="margin:0;padding:0;background-color:#FAF9F6;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">{{preheader}}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg-canvas" style="background-color:#FAF9F6;">
+  <tr>
+    <td align="center" style="padding:32px 12px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;border-collapse:separate;">
+        <tr>
+          <td style="padding:0 6px 16px 6px;font-family:'Space Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:19px;font-weight:600;letter-spacing:-0.3px;color:#141413;" class="ink">
+            <span style="display:inline-block;vertical-align:middle;white-space:nowrap;">
+              <span class="dot-ring" style="display:inline-block;width:14px;height:14px;border-radius:50%;background-color:#2563EB;border:2px solid #FAF9F6;"></span><span class="dot-ring" style="display:inline-block;width:14px;height:14px;border-radius:50%;background-color:#059669;border:2px solid #FAF9F6;margin-left:-6px;"></span><span class="dot-ring" style="display:inline-block;width:14px;height:14px;border-radius:50%;background-color:#E11D48;border:2px solid #FAF9F6;margin-left:-6px;"></span>
+            </span>
+            <span style="vertical-align:middle;padding-left:8px;">Met On Campus</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="bg-card" style="background-color:#FFFFFF;border:1px solid #E6E3DC;border-radius:16px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td class="px" style="padding:32px 32px 30px 32px;font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:25px;color:#141413;">
+{{{body}}}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td class="ink2" style="padding:20px 10px 0 10px;font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:19px;color:#8C877E;">
+{{#unsubscribeUrl}}
+            <p style="margin:0 0 8px 0;">You get this when something has been waiting a while and you are not online. <a href="{{unsubscribeUrl}}" style="color:#57534E;text-decoration:underline;" class="ink2">Turn these emails off</a>, or change it any time in Profile.</p>
+{{/unsubscribeUrl}}
+            <p style="margin:0;">Met On Campus connects verified university students. You are getting this because of your account at this email address.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

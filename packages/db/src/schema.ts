@@ -32,6 +32,12 @@ export const users = pgTable('users', {
   status: userStatusEnum('status').notNull().default('active'),
   suspendedAt: timestamp('suspended_at', { withTimezone: true }),
   suspendedReason: text('suspended_reason'),
+  // "Something is waiting" emails: on by default (a service notice, not marketing), one click to turn off. `lastAlert*`
+  // keep it to one email per stretch of news; `unsubscribeToken` is the unguessable key in the email's unsubscribe link.
+  emailAlerts: boolean('email_alerts').notNull().default(true),
+  lastAlertAt: timestamp('last_alert_at', { withTimezone: true }),
+  lastAlertSig: text('last_alert_sig'),
+  unsubscribeToken: uuid('unsubscribe_token').notNull().unique().defaultRandom(),
   createdAt: createdAt(),
 }, (t) => [check('level_range', sql`${t.level} between 100 and 900`)])
 

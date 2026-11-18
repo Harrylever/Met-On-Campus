@@ -28,7 +28,7 @@ export const meRoutes = new Elysia({ prefix: "/me" })
       .select()
       .from(intentProfiles)
       .where(eq(intentProfiles.userId, user.id))
-    return { user: publicSelf(user), profiles, onboarded: profiles.length > 0 }
+    return { user: publicSelf(user), profiles, onboarded: profiles.length > 0, settings: { emailAlerts: user.emailAlerts } }
   })
   .patch(
     "/",
@@ -62,6 +62,7 @@ export const meRoutes = new Elysia({ prefix: "/me" })
         name: t.Optional(t.String({ minLength: 1, maxLength: 60 })),
         department: t.Optional(t.String({ minLength: 1, maxLength: 80 })),
         level: t.Optional(t.Integer({ minimum: 100, maximum: 900 })),
+        emailAlerts: t.Optional(t.Boolean()),
       }),
     },
   )
