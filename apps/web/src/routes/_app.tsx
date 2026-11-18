@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ChatCircleDots, Compass, Medal, UserCircle, UsersThree, type Icon } from '@phosphor-icons/react'
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '~/lib/api'
@@ -24,7 +25,11 @@ export const Route = createFileRoute('/_app')({ ssr: false,
 
 // What a screen reader announces as the page name when you move between screens.
 const PAGE: Record<string, string> = { '/discover': 'Discover', '/rooms': 'Rooms', '/messages': 'Messages', '/profile': 'Profile', '/progress': 'Progress' }
-const NAV = [{ to: '/discover', label: 'Discover' }, { to: '/rooms', label: 'Rooms' }, { to: '/messages', label: 'Messages' }, { to: '/profile', label: 'Profile' }] as const
+// On a phone each tab is an icon over a tiny label, with any count as a corner badge, so "Messages 12" never needs more width
+// than "Messages" (a 320px phone gives each tab 64px). On a large screen the icons go and the tabs are plain text with the
+// count beside the label. The icon turns from outline to solid on the active tab, on top of the darker label and top border.
+const ICONS: Record<string, Icon> = { '/discover': Compass, '/rooms': UsersThree, '/messages': ChatCircleDots, '/progress': Medal, '/profile': UserCircle }
+const NAV = [{ to: '/discover', label: 'Discover' }, { to: '/rooms', label: 'Rooms' }, { to: '/messages', label: 'Messages' }, { to: '/progress', label: 'Progress' }, { to: '/profile', label: 'Profile' }] as const
 
 function Shell() {
   const { me } = Route.useRouteContext()
@@ -103,12 +108,27 @@ function Shell() {
       <Outlet />
       </main>
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 mx-auto flex h-16 max-w-md border-t border-line bg-surface lg:max-w-6xl">
-        {NAV.map((n) => (
-          <Link key={n.to} to={n.to} className="flex flex-1 items-center justify-center text-[13px] font-medium text-ink-2" activeProps={{ className: 'font-semibold !text-ink border-t-2 border-ink -mt-px' }}>
-            {n.label}
-            {(() => { const n2 = n.to === '/messages' ? (unread.data?.total ?? 0) : n.to === '/rooms' ? (unread.data?.rooms ?? 0) : 0; return n2 > 0 && <span className="ml-1.5 min-w-5 rounded-full bg-ink px-1.5 text-center font-mono text-[11px] leading-5 text-white"><span className="sr-only">{n2} waiting</span><span aria-hidden>{n2}</span></span> })()}
-          </Link>
-        ))}
+        {NAV.map((n) => {
+          const count = n.to === '/messages' ? (unread.data?.total ?? 0) : n.to === '/rooms' ? (unread.data?.rooms ?? 0) : 0
+          const newBadge = n.to === '/progress' && newBadges.length > 0
+          const Glyph = ICONS[n.to]!
+          return (
+            <Link key={n.to} to={n.to} className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-ink-2 lg:flex-row lg:gap-0 lg:text-[13px]" activeProps={{ className: 'font-semibold !text-ink border-t-2 border-ink -mt-px' }}>
+              {({ isActive }) => (<>
+                <span className="relative lg:hidden">
+                  <Glyph size={26} weight={isActive ? 'fill' : 'regular'} aria-hidden="true" />
+                  {count > 0 && <span aria-hidden className="absolute -right-3 -top-1 min-w-4 rounded-full bg-ink px-1 text-center font-mono text-[10px] leading-4 text-white">{count > 99 ? '99+' : count}</span>}
+                  {newBadge && <span aria-hidden className="absolute -right-1.5 -top-0.5 size-3 rounded-full bg-ink ring-2 ring-surface" />}
+                </span>
+                <span>{n.label}</span>
+                {count > 0 && <span aria-hidden className="ml-1.5 hidden min-w-5 rounded-full bg-ink px-1.5 text-center font-mono text-[11px] leading-5 text-white lg:inline-block">{count > 99 ? '99+' : count}</span>}
+                {newBadge && <span aria-hidden className="ml-1.5 hidden size-2 rounded-full bg-ink lg:inline-block" />}
+                {count > 0 && <span className="sr-only">, {count} waiting</span>}
+                {newBadge && <span className="sr-only">, new badge earned</span>}
+              </>)}
+            </Link>
+          )
+        })}
       </nav>
     </div>
   )

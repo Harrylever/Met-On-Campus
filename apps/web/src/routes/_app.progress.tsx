@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '~/lib/api'
 import { Skeleton } from '~/components/Skeleton'
@@ -63,11 +63,11 @@ function Progress() {
           )}
         </section>
 
+        <InviteCard invite={p.invite} />
+
         <LeaderboardCard />
 
         <BadgeShelf today={p.today} />
-
-        <InviteCard invite={p.invite} />
 
         <details className="card text-sm">
           <summary className="cursor-pointer text-[17px] font-semibold">How points work</summary>
@@ -77,7 +77,6 @@ function Progress() {
           <p className="mt-3 text-ink-2">The things you can repeat (check-ins, connections, rooms, meetups) stop paying at 60 points a day. Days follow Nigerian time. Points have no cash value and can be removed if they were earned unfairly. Everything in Romance is private and earns nothing.</p>
         </details>
       </>}
-      <Link to="/profile" className="text-sm font-semibold text-ink underline underline-offset-2">Back to Profile</Link>
     </div>
   )
 }
