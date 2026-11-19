@@ -1,0 +1,10 @@
+# Who is asked to review changes. The first matching pattern wins, so keep the specific ones above the catch-all.
+# Anything that changes what students can see about each other, who can sign in, or how staff act deserves a careful look.
+
+/packages/db/                 @Harrylever
+/apps/api/src/admin/          @Harrylever
+/apps/api/src/auth.ts         @Harrylever
+/apps/api/src/visibility.ts   @Harrylever
+/.github/                     @Harrylever
+
+*                             @Harrylever
