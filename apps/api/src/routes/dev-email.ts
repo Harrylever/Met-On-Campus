@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
 import { env } from '../env'
-import { waitingLines } from '../email'
+import { devOutbox, waitingLines } from '../email'
 import { renderEmail, type EmailName } from '../mail/render'
 
 // Development only (never registered in production): see an email as it will look, at /dev/email/<name>, or its
@@ -14,7 +14,14 @@ const SAMPLES: Record<EmailName, Record<string, unknown>> = {
   },
 }
 
-export const devEmailRoutes = new Elysia().get('/dev/email/:name', ({ params, query, status }) => {
+// The newest sign-in code sent to an address, for browser tests (e2e) that have no inbox. Same rules as the previews: never
+// registered in production, and it answers nothing once a real email provider is configured (the outbox is only filled when
+// there is none), so it can never expose a real student's code.
+export const devEmailRoutes = new Elysia().get('/dev/outbox/:email', ({ params, status }) => {
+  if (env.resendApiKey) return status(404, { error: 'not_found' })
+  const sent = devOutbox.filter((m) => m.to === params.email.toLowerCase()).at(-1)
+  return sent ? { code: sent.code } : status(404, { error: 'not_found' })
+}).get('/dev/email/:name', ({ params, query, status }) => {
   const name = params.name as EmailName
   if (!(name in SAMPLES)) return status(404, { error: 'not_found', available: Object.keys(SAMPLES) })
   const r = renderEmail(name, SAMPLES[name])

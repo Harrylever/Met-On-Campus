@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Brand } from '~/components/ui'
 
-/** A single placeholder bar/block. Decorative: the region around it announces "Loading". */
+/**
+ * A single placeholder bar/block. Decorative: the region around it announces "Loading". It is a span set to display as a block,
+ * not a div, because it is used inside paragraphs and labels, where a div is invalid HTML (and a hydration error).
+ */
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div aria-hidden="true" className={`skeleton ${className}`} />
+  return <span aria-hidden="true" className={`skeleton block ${className}`} />
 }
 
 /** Wraps skeletons so assistive tech hears one "Loading …" instead of a pile of empty shapes. */

@@ -57,10 +57,19 @@ Production:
 
 ## Tests
 ```sh
-bun run test:setup   # once: creates the metoncampus_test database
-bun run test         # API tests: visibility rules, auth + rate limits, blocking/reporting, meetups, rooms
+bun run test:setup                    # once: creates the metoncampus_test database
+bun run test                          # API tests: visibility rules, auth + rate limits, blocking/reporting, meetups, rooms
+bun run --filter @moc/web test        # student app: fast unit tests for its logic (Vitest)
+
+createdb metoncampus_e2e              # once, for the browser tests
+bunx playwright install chromium      # once, from apps/e2e
+bun run --filter @moc/e2e test        # real browser, real API and database (Playwright)
 ```
-Tests run in-process against a real Postgres and Redis (db 15). They truncate tables and flush Redis, so the setup refuses any database whose name doesn't end in `_test`. CI (`.github/workflows/ci.yml`) runs build, typecheck and tests on every push and PR.
+The API tests run in-process against a real Postgres and Redis (db 15). They truncate tables and flush Redis, so the setup refuses any database whose name doesn't end in `_test`.
+
+The browser tests (`apps/e2e`) start the API, the student app and the platform themselves on ports 3200, 3201 and 3300 (so a running `bun run dev` is not disturbed), against a throwaway database named `..._e2e` and Redis db 13, which `apps/e2e/prepare.ts` empties and refills on every run (it refuses any other database name). They cover the journeys that cross screens and API: signing in with an emailed code and onboarding, the campus student-domain rule, an invite from one student to another, and staff signing in (password plus authenticator code) to open and edit campuses. With no inbox in a test, the sign-in code is read from `GET /dev/outbox/:email`, a development-only route that is never registered in production and answers nothing once an email provider is configured. The staff account, its password and authenticator secret are test-only values in `apps/e2e/env.ts`. The tests also fail on any browser console error, which is how an invalid-HTML hydration warning on Discover was found. When one fails, Playwright keeps a trace and a screenshot in `apps/e2e/test-results`.
+
+CI (`.github/workflows/ci.yml`) runs two jobs on every push and PR: `check` (migrations, web build, typecheck, API tests, web unit tests) and `e2e` (the browser tests, in parallel).
 
 ## Deploy
 - **API + Postgres + Redis: Railway**, defined in `.railway/railway.ts` (`railway config plan` / `apply`). Custom domains are added with `railway domain`, not in the file's IaC engine. The API listens on `PORT`.
@@ -91,7 +100,7 @@ Railway runs the committed migrations before every API deploy (`preDeploy: bun r
 - **Account deletion** (`apps/api/src/account.ts`) is immediate and permanent. Students do it in the app (Profile, Delete your account): a fresh 6-digit code emailed to their address plus typing DELETE (`POST /me/delete/code`, then `POST /me/delete`; codes live 10 minutes in Redis, 5 tries, one a minute). Staff can do it on request from a student's page on the platform, by typing the student's email and a written reason; suspended students cannot sign in, so this is also the route for them. It removes the profile, photos (files too), chats and the messages in them, requests, blocks, sessions, presence and rooms they host (people with a place or waiting are told). **Reports and moderation records are kept**, with the account link cleared (migration 0008): a report about the person keeps `reported_label` (name and campus), and staff see it as "a deleted account" and can still close it. The audit log records `account.self_delete` or `user.delete` with the id and campus, never the email or name. A crash between the database commit and the file delete could leave an orphaned photo file; there is no sweeper yet.
 - **Chats** return the newest 200 messages (oldest first), and a meetup proposal can no longer be answered once its time has passed.
 - **Names** are a first name or nickname, letters only (never a matric number). Onboarding asks for it; accounts created before that were named from the email address and get a one-time prompt. An existing name can always be kept, so it never blocks saving other details.
-- **"Online now"** means the app is open, not that someone is on campus, and the interface says so until geofencing or a manual toggle exists.
+- **"Online now"** means the app is open, not that someone is on campus, and the interface says so. We chose not to geofence presence: it would need device location (the privacy policy promises we do not read it), a boundary per campus, and a permission prompt, for a badge and a count.
 - **Meetups** can only be proposed at public campus spots (`CAMPUS_SPOTS`); only the recipient can accept/decline.
 - **On Campus Now** lives only in Redis: a per-user key with `EX` (`PRESENCE_TTL_SECONDS`, default 90s) plus a ZSET index for listing. The web app sends a WS `presence` frame every 30s; stop and you expire.
 - **Auth limits** (Redis): 1 code/min and 5/hr per address, 20/hr per IP, 15 verify attempts per 15 min per address. Set `TRUST_PROXY=true` only behind a proxy that overwrites `X-Forwarded-For`.
@@ -103,5 +112,4 @@ Railway runs the committed migrations before every API deploy (`preDeploy: bun r
 - **Profile edits are never lost silently.** Each mode's form stays mounted, so switching tabs keeps what you typed; a mode with unsaved changes gets a dot, and leaving the page asks first.
 
 ## Not built yet
-- **Geofenced presence.** "On campus now" currently means the app is open.
-- **Web and end-to-end tests.** The API has a large test suite and CI runs it; the student web app and the platform have none.
+Nothing is planned that is not already built. Geofenced presence was considered and dropped (see "Online now" above); if you want to propose it, start there.

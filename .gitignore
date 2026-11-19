@@ -11,3 +11,9 @@ dist
 next-env.d.ts
 *.tsbuildinfo
 uploads/
+
+# Browser tests (apps/e2e)
+apps/e2e/test-results/
+apps/e2e/playwright-report/
+apps/e2e/playwright/.auth/
+apps/e2e/blob-report/
