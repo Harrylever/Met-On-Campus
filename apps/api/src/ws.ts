@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia'
 import { authed } from './auth'
 import { bus, topics } from './context'
 import * as presence from './presence'
+import { throttle } from './ratelimit'
 
 // Native Elysia WebSocket. `authed` resolves the session cookie before the upgrade (401 otherwise),
 // so `ws.data.user` is available in every event. Then:
@@ -15,9 +16,12 @@ export const wsRoutes = new Elysia().use(authed).ws('/ws', {
     ws.subscribe(topics.campus(user.university))
     ws.send({ type: 'ready', onCampusNow: await presence.count(user.university) })
   },
-  async message(ws, msg) {
-    const { user } = ws.data
-    const { joined } = await presence.beat(user.university, user.id, msg.place)
-    if (joined) bus.publish(topics.campus(user.university), { type: 'presence.count', count: await presence.count(user.university) })
-  },
+  async message(ws, msg) { await onPresenceFrame(ws.data.user, msg.place) },
 })
+
+/** An "on campus now" heartbeat. The app sends two a minute; past 30 a minute they are ignored (a socket has no 429 to send). */
+export async function onPresenceFrame(user: { id: string; university: string }, place?: string) {
+  if (await throttle(user.id, 'heartbeat')) return
+  const { joined } = await presence.beat(user.university, user.id, place)
+  if (joined) bus.publish(topics.campus(user.university), { type: 'presence.count', count: await presence.count(user.university) })
+}

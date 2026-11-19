@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, type Intent } from '~/lib/api'
 import { IntentTabs, formatWhen } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
+import { rateLimitedText } from '~/lib/limits'
 import { LoadingRegion, RoomCardSkeleton, useSkeleton } from '~/components/Skeleton'
 
 const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
@@ -19,7 +20,7 @@ const PROBLEMS: Record<string, string> = {
   bad_time_range: 'The end must be after the start, and still in the future.',
   capacity_below_members: 'More people than that already have a place. Choose a higher number of spots.',
 }
-export const problemText = (e: unknown) => PROBLEMS[(e as { value?: { error?: string } })?.value?.error ?? ''] ?? 'Something went wrong. Check your connection and try again.'
+export const problemText = (e: unknown) => rateLimitedText(e, 'rooms') ?? PROBLEMS[(e as { value?: { error?: string } })?.value?.error ?? ''] ?? 'Something went wrong. Check your connection and try again.'
 
 const KINDS: { id: Intent; label: string }[] = [{ id: 'study', label: 'Study Rooms' }, { id: 'friends', label: 'Hangouts' }]
 

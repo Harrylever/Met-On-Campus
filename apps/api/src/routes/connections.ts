@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia'
 import { and, desc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm'
 import { connectionRequests, conversationReads, conversations, messages, roomMembers, rooms, users } from '@moc/db'
 import { authed, publicSelf } from '../auth'
+import { limited } from '../ratelimit'
 import { bus, db, topics } from '../context'
 import { canonical, spotsFor } from '../lists'
 import { canInteract, orderedPair, type Intent as IntentName } from '../visibility'
@@ -48,7 +49,8 @@ async function loadInbox(user: User, intent?: IntentName) {
 export const connectionRoutes = new Elysia().use(authed)
   // Invite to Study / Say Hi / Send Spark. Creates the request and the intent-scoped conversation.
   // If they already invited you for this mode, you have both said yes: it becomes a connection straight away.
-  .post('/connections', async ({ user, body, status }) => {
+  .post('/connections', async ({ user, body, status, set }) => {
+    const over = await limited(user.id, 'invite', set); if (over) return status(429, over)
     const [other] = await db.select().from(users).where(eq(users.id, body.toUserId)).limit(1)
     if (!other || !(await canInteract(user, other, body.intent))) return status(403, { error: 'not_allowed' })
     const [a, b] = orderedPair(user.id, other.id)
@@ -122,7 +124,9 @@ export const connectionRoutes = new Elysia().use(authed)
       .onConflictDoUpdate({ target: [conversationReads.conversationId, conversationReads.userId], set: { readAt: new Date() } })
     return { ok: true }
   })
-  .post('/conversations/:id/messages', async ({ user, params, body, status }) => {
+  .post('/conversations/:id/messages', async ({ user, params, body, status, set }) => {
+    const over = (await limited(user.id, 'message', set)) ?? (body.kind === 'meetup' ? await limited(user.id, 'meetup', set) : null)
+    if (over) return status(429, over)
     const conv = await myConversation(user.id, params.id)
     if (!conv) return status(404, { error: 'not_found' })
     const otherId = conv.userAId === user.id ? conv.userBId : conv.userAId

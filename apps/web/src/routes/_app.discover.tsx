@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
+import { rateLimitedText } from '~/lib/limits'
 import { useDebounced, usePersisted } from '~/lib/persist'
 import { photoUrl } from '~/components/Avatar'
 import { LoadingRegion, Skeleton, StudentCardSkeleton, useSkeleton } from '~/components/Skeleton'
@@ -89,6 +90,7 @@ function Discover() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between"><span className="label text-ink">{feed.isLoading ? <Skeleton className="h-3.5 w-20" /> : <>{total} {total === 1 ? 'student' : 'students'}</>}</span><span className="label">Online first</span></div>
         {feed.isError && <p role="alert" className="card text-danger">Could not load students. Try again in a moment.</p>}
+        {connect.isError && <p role="alert" className="card text-danger">{rateLimitedText(connect.error, 'invites') ?? 'Could not send the invite. Try again.'}</p>}
         {!feed.isLoading && cards.length === 0 && (
           <div className="card space-y-2">
             <h2 className="text-[17px] font-semibold">{filtered ? 'No students match' : 'No one here yet'}</h2>

@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia"
 import { and, eq } from "drizzle-orm"
 import { intentProfiles, users } from "@moc/db"
 import { authed, publicSelf } from "../auth"
+import { limited } from "../ratelimit"
 import { db } from "../context"
 import { canonical, departmentsFor, spotsFor, tidy, validPersonName } from "../lists"
 import { onProfileSaved } from "../rewards/events"
@@ -33,7 +34,9 @@ export const meRoutes = new Elysia({ prefix: "/me" })
   })
   .patch(
     "/",
-    async ({ user, body, status }) => {
+    async ({ user, body, status, set }) => {
+      const over = await limited(user.id, "profile", set)
+      if (over) return status(429, over)
       const changes = { ...body }
       // The display name is what every other student sees, so it must be a real name or nickname (no digits: matric
       // numbers). Keeping the name you already have is always allowed, so an old one never blocks saving other details.
@@ -70,7 +73,9 @@ export const meRoutes = new Elysia({ prefix: "/me" })
   // Upsert one mode's profile. Turning a mode on/off never touches the others.
   .put(
     "/profiles/:intent",
-    async ({ user, params, body, status }) => {
+    async ({ user, params, body, status, set }) => {
+      const over = await limited(user.id, "profile", set)
+      if (over) return status(429, over)
       const changes = { ...body }
       if (changes.usualSpot) {
         const [existing] = await db

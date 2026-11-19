@@ -3,7 +3,7 @@ import { and, eq, gt } from "drizzle-orm"
 import { emailCodes, sessions, users, intentProfiles } from "@moc/db"
 import { db } from "./context"
 import { sendVerificationCode } from "./email"
-import { hit } from "./ratelimit"
+import { hit, limited } from "./ratelimit"
 import { env } from "./env"
 import { codeBlock, noteInterest, signupBlock } from "./campuses"
 
@@ -45,12 +45,15 @@ export async function userFromToken(token?: string) {
 // Plugin that resolves the signed-in user; any route after `.use(authed)` gets `user` or a 401.
 export const authed = new Elysia({ name: "authed" }).resolve(
   { as: "scoped" },
-  async ({ cookie, status }) => {
+  async ({ cookie, status, set }) => {
     const user = await userFromToken(
       cookie[COOKIE]?.value as string | undefined,
     )
     if (!user) return status(401, { error: "unauthenticated" })
     if (user.status === "suspended") return status(403, { error: "account_suspended" })
+    // A safety net under every signed-in request, far above normal use (see LIMITS).
+    const over = await limited(user.id, "global", set)
+    if (over) return status(429, over)
     return { user }
   },
 )

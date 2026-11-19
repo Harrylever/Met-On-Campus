@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
 import { IntentTabs, formatWhen } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
+import { rateLimitedText } from '~/lib/limits'
 import { Avatar } from '~/components/Avatar'
 import { BubblesSkeleton, ConversationChipsSkeleton, ConversationSkeleton, LoadingRegion, useSkeleton } from '~/components/Skeleton'
 import { SafetyMenu } from '~/components/safety'
@@ -98,11 +99,11 @@ function Messages() {
     onSuccess: () => { for (const k of ['conversations', 'unread', 'discover']) qc.invalidateQueries({ queryKey: [k] }) },
   })
   const done = () => { qc.invalidateQueries({ queryKey: ['messages', current?.id] }); qc.invalidateQueries({ queryKey: ['conversations'] }) }
-  const sendText = useMutation({ mutationFn: () => unwrap(api.conversations({ id: current!.id }).messages.post({ kind: 'text', body: draft })), onSuccess: () => { setDraft(''); setSendError(null); done() }, onError: (e: { value?: { error?: string } }) => setSendError(SEND_ERRORS[e.value?.error ?? ''] ?? 'Could not send. Try again.') })
+  const sendText = useMutation({ mutationFn: () => unwrap(api.conversations({ id: current!.id }).messages.post({ kind: 'text', body: draft })), onSuccess: () => { setDraft(''); setSendError(null); done() }, onError: (e: { value?: { error?: string } }) => setSendError(rateLimitedText(e, 'messages') ?? SEND_ERRORS[e.value?.error ?? ''] ?? 'Could not send. Try again.') })
   const propose = useMutation({
     mutationFn: () => unwrap(api.conversations({ id: current!.id }).messages.post({ kind: 'meetup', where: spot, when: new Date(when).toISOString() })),
     onSuccess: () => { setComposing(false); setSpot(''); setWhen(''); setSendError(null); done() },
-    onError: (e: { value?: { error?: string } }) => setSendError(SEND_ERRORS[e.value?.error ?? ''] ?? 'Could not send. Try again.'),
+    onError: (e: { value?: { error?: string } }) => setSendError(rateLimitedText(e, 'messages') ?? SEND_ERRORS[e.value?.error ?? ''] ?? 'Could not send. Try again.'),
   })
   const answer = useMutation({ mutationFn: (v: { id: string; status: 'confirmed' | 'declined' }) => unwrap(api.messages({ id: v.id }).meetup.patch({ status: v.status })), onSuccess: done })
 

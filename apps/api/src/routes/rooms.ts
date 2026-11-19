@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia'
 import { and, eq, gt, inArray, isNull, ne, sql } from 'drizzle-orm'
 import { roomMembers, rooms, users } from '@moc/db'
 import { authed, publicSelf } from '../auth'
+import { limited } from '../ratelimit'
 import { bus, db, topics } from '../context'
 import { blockedWith, isBlockedBetween } from '../blocks'
 import { onRoomMemberApproved } from '../rewards/events'
@@ -35,7 +36,8 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
       }),
     }
   }, { query: t.Object({ intent: RoomIntent }) })
-  .post('/', async ({ user, body, status }) => {
+  .post('/', async ({ user, body, status, set }) => {
+    const over = await limited(user.id, 'roomCreate', set); if (over) return status(429, over)
     const startsAt = new Date(body.startsAt), endsAt = new Date(body.endsAt)
     if (!(endsAt > startsAt) || endsAt < new Date()) return status(422, { error: 'bad_time_range' })
     const room = await db.transaction(async (tx) => {
@@ -46,7 +48,8 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
     bus.publish(topics.campus(user.university), { type: 'room.created', roomId: room.id, intent: room.intent })
     return { room }
   }, { body: t.Object({ intent: RoomIntent, tag: t.String({ maxLength: 24 }), title: t.String({ maxLength: 80 }), place: t.String({ maxLength: 80 }), startsAt: t.String({ format: 'date-time' }), endsAt: t.String({ format: 'date-time' }), capacity: t.Integer({ minimum: 2, maximum: 50 }) }) })
-  .post('/:id/request', async ({ user, params, status }) => {
+  .post('/:id/request', async ({ user, params, status, set }) => {
+    const over = await limited(user.id, 'roomRequest', set); if (over) return status(429, over)
     const [room] = await db.select().from(rooms).where(and(eq(rooms.id, params.id), eq(rooms.university, user.university))).limit(1)
     if (!room || room.cancelledAt || room.endsAt < new Date() || (await isBlockedBetween(user.id, room.hostId))) return status(404, { error: 'not_found' })
     await db.insert(roomMembers).values({ roomId: room.id, userId: user.id, status: 'pending' }).onConflictDoNothing()
@@ -85,7 +88,8 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
   }, { body: t.Object({ decision: t.Union([t.Literal('approved'), t.Literal('declined')]) }) })
 
   // Host: change a room's details. Everyone who has a place is told. Capacity cannot drop below the people already in.
-  .patch('/:id', async ({ user, params, body, status }) => {
+  .patch('/:id', async ({ user, params, body, status, set }) => {
+    const over = await limited(user.id, 'roomEdit', set); if (over) return status(429, over)
     const out = await db.transaction(async (tx) => {
       const [room] = await tx.select().from(rooms).where(and(eq(rooms.id, params.id), eq(rooms.hostId, user.id))).for('update').limit(1)
       if (!room) return { code: 403 as const, error: 'host_only' }

@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { blocks, conversations, messages, reports, users } from '@moc/db'
 import { authed, publicSelf } from '../auth'
 import { db } from '../context'
-import { hit } from '../ratelimit'
+import { hit, limited } from '../ratelimit'
 
 const Reason = t.Union([t.Literal('harassment'), t.Literal('spam'), t.Literal('fake_profile'), t.Literal('inappropriate'), t.Literal('unsafe'), t.Literal('other')])
 
@@ -13,7 +13,8 @@ export const safetyRoutes = new Elysia().use(authed)
       .innerJoin(users, eq(users.id, blocks.blockedId)).where(eq(blocks.blockerId, user.id))
     return { blocked: rows.map((r) => ({ ...publicSelf(r.u), blockedAt: r.at })) }
   })
-  .post('/blocks', async ({ user, body, status }) => {
+  .post('/blocks', async ({ user, body, status, set }) => {
+    const over = await limited(user.id, 'block', set); if (over) return status(429, over)
     if (body.userId === user.id) return status(422, { error: 'cannot_block_self' })
     const [target] = await db.select().from(users).where(eq(users.id, body.userId)).limit(1)
     if (!target || target.university !== user.university) return status(404, { error: 'not_found' })

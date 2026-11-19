@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia'
 import { and, eq, inArray, or } from 'drizzle-orm'
 import { connectionRequests, intentProfiles, NO_DEPARTMENT, users } from '@moc/db'
 import { authed } from '../auth'
+import { limited } from '../ratelimit'
 import { db } from '../context'
 import * as presence from '../presence'
 import { blockedWith } from '../blocks'
@@ -9,7 +10,8 @@ import { between } from '../requests'
 import { approvedPhotoIds } from '../photos'
 
 export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
-  .get('/', async ({ user, query, status }) => {
+  .get('/', async ({ user, query, status, set }) => {
+    const over = await limited(user.id, 'discover', set); if (over) return status(429, over)
     const intent = query.intent
     const [mine] = await db.select().from(intentProfiles)
       .where(and(eq(intentProfiles.userId, user.id), eq(intentProfiles.intent, intent), eq(intentProfiles.enabled, true))).limit(1)
