@@ -27,11 +27,12 @@ import { devEmailRoutes } from "./routes/dev-email"
 import { departmentRequestRoutes } from "./routes/department-requests"
 import { adminServiceGate } from "./admin/session"
 import { recordRequest } from "./metrics"
+import { logRequest, markStart } from "./httplog"
 
 export const app = new Elysia()
   // Every /admin/* request must carry the platform server's secret before anything else runs.
-  .onRequest(({ request }) => adminServiceGate(request))
-  .onAfterResponse({ as: "global" }, ({ set }) => recordRequest(Number(set.status ?? 200)))
+  .onRequest(({ request }) => { markStart(request); return adminServiceGate(request) })
+  .onAfterResponse({ as: "global" }, ({ set, request, route }) => { recordRequest(Number(set.status ?? 200)); logRequest(request, route, set.status ?? 200) })
   .use(cors({ origin: env.webOrigin, credentials: true }))
   .get("/health", () => ({ ok: true }))
   .use(authRoutes)
