@@ -1,6 +1,6 @@
 # Met On Campus
 
-Bun workspaces monorepo.
+Bun workspaces monorepo. Want to help? Read [CONTRIBUTING.md](CONTRIBUTING.md): `main` only takes pull requests, and CI must pass.
 
 | Path | What |
 |---|---|
