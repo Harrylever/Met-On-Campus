@@ -5,7 +5,7 @@ import { db } from "./context"
 import { sendVerificationCode } from "./email"
 import { hit } from "./ratelimit"
 import { env } from "./env"
-import { campusOpen, mayRequestCode, noteInterest } from "./campuses"
+import { codeBlock, noteInterest, signupBlock } from "./campuses"
 
 const sha = (s: string) =>
   new Bun.CryptoHasher("sha256").update(s).digest("hex")
@@ -89,9 +89,10 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       // Only universities staff have opened can sign up (an existing student can always sign in). The attempt is counted, by
       // university only, so staff can see which one to open next.
       const campus = universityOf(email)
-      if (!(await mayRequestCode(email, campus))) {
-        await noteInterest(campus)
-        return status(422, { error: "campus_not_open" })
+      const block = await codeBlock(email, campus)
+      if (block) {
+        if (block.error === "campus_not_open") await noteInterest(campus)
+        return status(422, block)
       }
       const code = String(
         crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000,
@@ -152,8 +153,11 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         .from(users)
         .where(eq(users.email, email))
         .limit(1)
-      // A campus paused (or never opened) after the code was sent still cannot get a new account.
-      if (!existing && !(await campusOpen(university))) return status(403, { error: "campus_not_open" })
+      // A campus paused (or never opened), or a domain rule added, after the code was sent still cannot get a new account.
+      if (!existing) {
+        const block = await signupBlock(email, university)
+        if (block) return status(403, block)
+      }
       // Do not mint a session for a suspended student; the code is already spent.
       if (existing?.status === "suspended") return status(403, { error: "account_suspended" })
       // Only a brand-new account can be attributed to an invite, and only if the link's owner is a real, active student

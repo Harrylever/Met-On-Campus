@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia'
 import { and, eq, isNotNull, notInArray, sql } from 'drizzle-orm'
 import { campusInterest, campuses, campusSpots, departments, users } from '@moc/db'
 import { db } from '../context'
-import { openCampus, validSlug } from '../campuses'
+import { cleanEmailDomains, openCampus, validSlug } from '../campuses'
 import { tidy, validListName } from '../lists'
 import { adminAuthed, audit } from './session'
 
@@ -19,7 +19,7 @@ export const adminCampuses = new Elysia({ prefix: '/admin/campuses' }).use(admin
       .where(rows.length ? notInArray(campusInterest.slug, rows.map((r) => r.slug)) : undefined)
       .orderBy(sql`${campusInterest.attempts} desc`).limit(50)
     return {
-      campuses: rows.map((c) => ({ slug: c.slug, name: c.name, open: c.open, students: by(students, c.slug), departments: by(depts, c.slug), spots: by(spots, c.slug), createdAt: c.createdAt })),
+      campuses: rows.map((c) => ({ slug: c.slug, name: c.name, open: c.open, emailDomains: c.emailDomains, students: by(students, c.slug), departments: by(depts, c.slug), spots: by(spots, c.slug), createdAt: c.createdAt })),
       asked: asked.map((a) => ({ slug: a.slug, attempts: a.attempts, lastAt: a.lastAt })),
     }
   })
@@ -28,10 +28,12 @@ export const adminCampuses = new Elysia({ prefix: '/admin/campuses' }).use(admin
     const slug = body.slug.trim().toLowerCase(), name = tidy(body.name)
     if (!validSlug(slug)) return status(422, { error: 'invalid_slug' })
     if (!validListName(name)) return status(422, { error: 'invalid_name' })
-    if (!(await openCampus(slug, name, body.fromTemplate ?? true))) return status(409, { error: 'exists' })
-    await audit(admin.id, 'campus.open', { targetType: 'campus', targetId: slug, meta: { name, fromTemplate: body.fromTemplate ?? true }, ip })
+    const emailDomains = cleanEmailDomains(slug, body.emailDomains ?? [])
+    if (!emailDomains) return status(422, { error: 'invalid_email_domain' })
+    if (!(await openCampus(slug, name, body.fromTemplate ?? true, emailDomains))) return status(409, { error: 'exists' })
+    await audit(admin.id, 'campus.open', { targetType: 'campus', targetId: slug, meta: { name, fromTemplate: body.fromTemplate ?? true, emailDomains }, ip })
     return { ok: true }
-  }, { body: t.Object({ slug: t.String({ maxLength: 60 }), name: t.String({ maxLength: 120 }), fromTemplate: t.Optional(t.Boolean()) }) })
+  }, { body: t.Object({ slug: t.String({ maxLength: 60 }), name: t.String({ maxLength: 120 }), fromTemplate: t.Optional(t.Boolean()), emailDomains: t.Optional(t.Array(t.String({ maxLength: 120 }), { maxItems: 20 })) }) })
 
   // Rename, pause or resume. Pausing stops new accounts only; students already in carry on.
   .patch('/:slug', async ({ admin, params, body, ip, status }) => {
@@ -39,8 +41,11 @@ export const adminCampuses = new Elysia({ prefix: '/admin/campuses' }).use(admin
     if (!row) return status(404, { error: 'not_found' })
     const name = body.name !== undefined ? tidy(body.name) : row.name
     if (body.name !== undefined && !validListName(name)) return status(422, { error: 'invalid_name' })
-    await db.update(campuses).set({ name, ...(body.open !== undefined ? { open: body.open } : {}) }).where(eq(campuses.slug, row.slug))
+    const emailDomains = body.emailDomains !== undefined ? cleanEmailDomains(row.slug, body.emailDomains) : row.emailDomains
+    if (!emailDomains) return status(422, { error: 'invalid_email_domain' })
+    await db.update(campuses).set({ name, emailDomains, ...(body.open !== undefined ? { open: body.open } : {}) }).where(eq(campuses.slug, row.slug))
+    if (emailDomains.join() !== row.emailDomains.join()) await audit(admin.id, 'campus.domains', { targetType: 'campus', targetId: row.slug, meta: { from: row.emailDomains, to: emailDomains }, ip })
     if (name !== row.name) await audit(admin.id, 'campus.rename', { targetType: 'campus', targetId: row.slug, meta: { from: row.name, to: name }, ip })
     if (body.open !== undefined && body.open !== row.open) await audit(admin.id, body.open ? 'campus.resume' : 'campus.pause', { targetType: 'campus', targetId: row.slug, meta: { name }, ip })
     return { ok: true }
-  }, { params: t.Object({ slug: t.String({ maxLength: 60 }) }), body: t.Object({ name: t.Optional(t.String({ maxLength: 120 })), open: t.Optional(t.Boolean()) }) })
+  }, { params: t.Object({ slug: t.String({ maxLength: 60 }) }), body: t.Object({ name: t.Optional(t.String({ maxLength: 120 })), open: t.Optional(t.Boolean()), emailDomains: t.Optional(t.Array(t.String({ maxLength: 120 }), { maxItems: 20 })) }) })

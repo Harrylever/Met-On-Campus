@@ -175,6 +175,9 @@ export const campuses = pgTable('campuses', {
   slug: text('slug').primaryKey(),
   name: text('name').notNull(),
   open: boolean('open').notNull().default(true),
+  // The student email domains new accounts must use (exact match, e.g. st.futminna.edu.ng). Empty = any address at the
+  // university, which is how every campus behaved before this existed. Existing students are never affected.
+  emailDomains: text('email_domains').array().notNull().default(sql`'{}'::text[]`),
   createdAt: createdAt(),
 })
 

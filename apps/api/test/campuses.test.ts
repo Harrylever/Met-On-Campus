@@ -200,3 +200,70 @@ describe('staff overview and lists', () => {
     expect((await names(fut)).departments).toContain('Cyber Security')
   })
 })
+
+describe('student email domains', () => {
+  const domains = async (slug: string) => (await db.select().from(campuses).where(eq(campuses.slug, slug)))[0]!.emailDomains
+
+  test('with a domain set, only that domain can sign up; others are told which to use, with nothing sent or counted', async () => {
+    expect((await openAbu({ emailDomains: ['st.abu.edu.ng'] })).status).toBe(200)
+    const staff = await ask('prof@abu.edu.ng', 1)
+    expect(staff.status).toBe(422); expect(staff.json.error).toBe('email_domain_not_allowed'); expect(staff.json.domains).toEqual(['st.abu.edu.ng'])
+    expect((await ask('x@evil.st.abu.edu.ng', 2)).json.error).toBe('email_domain_not_allowed')    // an exact match, not "ends with"
+    expect(devOutbox).toHaveLength(0); expect(await interest('abu')).toBeUndefined()              // not "campus not open": nobody asked for a campus
+    const ok = await signUp('amina@st.abu.edu.ng')
+    expect(ok.status).toBe(200); expect(ok.json.user.university).toBe('abu')
+  })
+
+  test('a campus can have several domains', async () => {
+    await openAbu({ emailDomains: ['st.abu.edu.ng', 'students.abu.edu.ng'] })
+    expect((await signUp('amina@st.abu.edu.ng')).status).toBe(200)
+    expect((await signUp('tunde@students.abu.edu.ng')).status).toBe(200)
+    expect((await ask('ngozi@abu.edu.ng', 3)).json.error).toBe('email_domain_not_allowed')
+  })
+
+  test('without a domain, any address at the university works, as before', async () => {
+    await openAbu()
+    expect(await domains('abu')).toEqual([])
+    expect((await signUp('amina@abu.edu.ng')).status).toBe(200)
+  })
+
+  test('a domain must be a real domain of that university: spaces and capitals are tidied, junk is refused', async () => {
+    for (const bad of [['gmail.com'], ['st.unn.edu.ng'], ['abu.edu.ng/x'], ['st abu.edu.ng'], ['.abu.edu.ng'], ['abu.edu.ng.evil.com'], ['edu.ng'], ['a@abu.edu.ng'], ['st.abu.edu.ng', 'x'], Array.from({ length: 6 }, (_, i) => `s${i}.abu.edu.ng`)]) {
+      const r = await openAbu({ emailDomains: bad })
+      expect(r.status, JSON.stringify(bad)).toBe(422); expect(r.json.error).toBe('invalid_email_domain')
+    }
+    expect(await db.select().from(campuses).where(eq(campuses.slug, 'abu'))).toHaveLength(0)
+    expect((await openAbu({ emailDomains: [' ST.ABU.EDU.NG ', 'st.abu.edu.ng', 'abu.edu.ng'] })).status).toBe(200)
+    expect(await domains('abu')).toEqual(['st.abu.edu.ng', 'abu.edu.ng'])
+  })
+
+  test('staff can change them later; students already in keep signing in; clearing them allows any address again', async () => {
+    await openAbu()
+    await signUp('amina@abu.edu.ng')
+    expect((await A('PATCH', '/admin/campuses/abu', { emailDomains: ['st.abu.edu.ng'] })).status).toBe(200)
+    await redis.flushdb()
+    expect((await ask('amina@abu.edu.ng', 2)).status).toBe(200)                                   // already a student: not locked out
+    expect((await ask('tunde@abu.edu.ng', 3)).json.error).toBe('email_domain_not_allowed')        // new at the old address: refused
+    expect((await A('PATCH', '/admin/campuses/abu', { emailDomains: [] })).status).toBe(200)
+    await redis.flushdb()
+    expect((await ask('tunde@abu.edu.ng', 4)).status).toBe(200)
+    expect((await A('PATCH', '/admin/campuses/abu', { emailDomains: ['gmail.com'] })).json.error).toBe('invalid_email_domain')
+  })
+
+  test('a code asked for before the domain was set cannot create an account at another domain', async () => {
+    await openAbu()
+    await ask('tunde@abu.edu.ng')
+    await A('PATCH', '/admin/campuses/abu', { emailDomains: ['st.abu.edu.ng'] })
+    const res = await call(null, 'POST', '/auth/verify', { email: 'tunde@abu.edu.ng', code: code('tunde@abu.edu.ng') })
+    expect(res.status).toBe(403); expect(res.json.error).toBe('email_domain_not_allowed')
+    expect(await db.select().from(users).where(eq(users.email, 'tunde@abu.edu.ng'))).toHaveLength(0)
+  })
+
+  test('the list shows them, and changes are audited', async () => {
+    await openAbu({ emailDomains: ['st.abu.edu.ng'] })
+    expect((await A('GET', '/admin/campuses')).json.campuses.find((c: { slug: string }) => c.slug === 'abu').emailDomains).toEqual(['st.abu.edu.ng'])
+    await A('PATCH', '/admin/campuses/abu', { emailDomains: ['st.abu.edu.ng', 'students.abu.edu.ng'] })
+    const a = await db.select().from(adminAudit).where(eq(adminAudit.action, 'campus.domains'))
+    expect(a).toHaveLength(1); expect(a[0]!.targetId).toBe('abu'); expect(a[0]!.meta).toContain('students.abu.edu.ng')
+  })
+})

@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import { campuses, users } from '@moc/db'
 import { db } from './context'
+import { env } from './env'
 
 // The allowlist of universities. Only a campus in `campuses` with open = true can create new accounts. Pausing one stops new
 // accounts only: existing students keep signing in. Each campus has its own department and spot lists; the rows with no
@@ -14,11 +15,40 @@ export async function campusOpen(slug: string) {
   return !!row?.open
 }
 
-/** Can this address get a sign-in code? Anyone at an open campus, and anyone who already has an account (a paused campus keeps its students). */
-export async function mayRequestCode(email: string, slug: string) {
-  if (await campusOpen(slug)) return true
+export type SignupBlock = { error: 'campus_not_open' } | { error: 'email_domain_not_allowed'; domains: string[] }
+
+/** Why this address cannot start a NEW account at this campus, or null if it can: the campus must be open and, if staff set
+ *  student email domains, the address must be on one of them exactly. */
+export async function signupBlock(email: string, slug: string): Promise<SignupBlock | null> {
+  const [row] = await db.select({ open: campuses.open, domains: campuses.emailDomains }).from(campuses).where(eq(campuses.slug, slug)).limit(1)
+  if (!row?.open) return { error: 'campus_not_open' }
+  if (row.domains.length > 0 && !row.domains.includes(email.split('@')[1] ?? '')) return { error: 'email_domain_not_allowed', domains: row.domains }
+  return null
+}
+
+/** Can this address get a sign-in code? Anyone allowed to sign up, and anyone who already has an account (a paused campus, or a
+ *  domain rule added later, never locks out the students already in). */
+export async function codeBlock(email: string, slug: string): Promise<SignupBlock | null> {
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
-  return !!existing
+  return existing ? null : signupBlock(email, slug)
+}
+
+const MAX_DOMAINS = 5
+const DOMAIN = /^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+(-[a-z0-9]+)*)+$/
+/**
+ * Tidies a list of student email domains (trim, lowercase, no repeats) and checks each is a real domain of THIS university, so
+ * a typo can never lock everyone out: it must end in an allowed suffix (.edu.ng) with the campus's own name right before it
+ * (abu: abu.edu.ng, st.abu.edu.ng). Returns null if anything is wrong.
+ */
+export function cleanEmailDomains(slug: string, raw: string[]): string[] | null {
+  const list = [...new Set(raw.map((d) => d.trim().toLowerCase()).filter(Boolean))]
+  if (list.length > MAX_DOMAINS) return null
+  for (const d of list) {
+    if (d.length > 100 || !DOMAIN.test(d)) return null
+    const ok = env.emailSuffixes.some((suffix) => d.endsWith(suffix) && d.slice(0, -suffix.length).split('.').at(-1) === slug)
+    if (!ok) return null
+  }
+  return list
 }
 
 const MAX_INTEREST_ROWS = 5000
@@ -36,9 +66,9 @@ export async function noteInterest(slug: string) {
 }
 
 /** Opens a campus. With `fromTemplate`, it starts with a copy of the template department and spot lists. Returns false if it already exists. */
-export async function openCampus(slug: string, name: string, fromTemplate: boolean) {
+export async function openCampus(slug: string, name: string, fromTemplate: boolean, emailDomains: string[] = []) {
   return db.transaction(async (tx) => {
-    const made = await tx.insert(campuses).values({ slug, name }).onConflictDoNothing().returning({ slug: campuses.slug })
+    const made = await tx.insert(campuses).values({ slug, name, emailDomains }).onConflictDoNothing().returning({ slug: campuses.slug })
     if (made.length === 0) return false
     if (fromTemplate) {
       for (const table of ['departments', 'campus_spots']) {

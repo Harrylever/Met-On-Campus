@@ -23,7 +23,7 @@ const INVITE = /^[a-f0-9]{10}$/
 const INVITE_KEY = "moc.invite"
 const savedInvite = () => { try { const v = localStorage.getItem(INVITE_KEY); return v && INVITE.test(v) ? v : null } catch { return null } }
 
-type ApiError = { status?: number; value?: { error?: string; retryAfter?: number } }
+type ApiError = { status?: number; value?: { error?: string; retryAfter?: number; domains?: string[] } }
 const wait = (seconds: number) =>
   seconds <= 90
     ? `${seconds} second${seconds === 1 ? "" : "s"}`
@@ -83,6 +83,10 @@ function Login() {
       return n <= 90 ? `You asked for a code a moment ago. Try again in ${wait(n)}.` : `You have asked for several codes. Try again in ${wait(n)}.`
     }
     if (e.value?.error === "university_email_required") return "Use your university email address, which ends in .edu.ng."
+    if (e.value?.error === "email_domain_not_allowed") {
+      const domains = (e.value.domains ?? []).map((d) => `@${d}`)
+      return `Use your student email address${domains.length ? `, which ends in ${domains.join(" or ")}` : ""}. Other addresses at your university cannot sign up.`
+    }
     if (e.value?.error === "campus_not_open") return "Your university is not on Met On Campus yet. We have noted that you asked, and we open new universities based on interest."
     return "We could not send a code. Check your connection and try again."
   })()
@@ -92,6 +96,7 @@ function Login() {
     if (e.status === 429) return `Too many tries. Wait ${wait(e.value?.retryAfter ?? 900)}, then ask for a new code.`
     if (e.value?.error === "code_expired") return "That code has expired. Send a new one below."
     if (e.value?.error === "account_suspended") return "This account is suspended."
+    if (e.value?.error === "campus_not_open" || e.value?.error === "email_domain_not_allowed") return "New accounts are not open for this email address right now. Go back and check the address you used."
     return "That code is not right. Check the newest email, or send a new code."
   })()
 
