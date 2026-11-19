@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, count, countDistinct, eq, inArray, type SQL } from 'drizzle-orm'
 import { generateRequestDetails, setVapidDetails } from 'web-push'
 import { pushSubscriptions, users } from '@moc/db'
 import { bus, db, redis } from './context'
@@ -60,6 +60,11 @@ export const setPushSender = (fn: Sender | null) => { send = fn ?? realSender }
 const pending = new Set<Promise<unknown>>()
 /** Resolves when every notification started so far has been handled (tests). */
 export const pushIdle = () => Promise.allSettled([...pending])
+/** Keeps a send running after its request has been answered, and lets `pushIdle` wait for it. */
+export function inBackground(work: Promise<unknown>) {
+  const p: Promise<unknown> = work.catch((err) => console.error('[push] background send failed', err)).finally(() => pending.delete(p))
+  pending.add(p)
+}
 
 /** Send to every device of one person. A device the push service says is gone (404/410) is forgotten. */
 export async function pushToUser(userId: string, notice: Notice, opts: { force?: boolean } = {}) {
@@ -72,19 +77,55 @@ export async function pushToUser(userId: string, notice: Notice, opts: { force?:
     if (!u || u.status !== 'active' || (await presence.here(u.university)).includes(userId)) return 0
   }
   const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId))
-  const payload: Payload = { title: 'Met On Campus', body: notice.body, url: notice.url, tag: notice.kind }
-  const gone: string[] = []
+  return sendToSubs(subs, { title: 'Met On Campus', body: notice.body, url: notice.url, tag: notice.kind })
+}
+
+/** Sends one payload to each device. A device the push service says is gone (404/410) is forgotten. Returns how many accepted it. */
+async function sendToSubs(subs: (Sub & { id: string; userId: string })[], payload: Payload) {
+  const gone: typeof subs = []
   let delivered = 0
   await Promise.all(subs.map(async (s) => {
     try {
       const status = await send(s, payload)
-      if (status === 404 || status === 410) gone.push(s.id)
+      if (status === 404 || status === 410) gone.push(s)
       else if (status >= 200 && status < 300) { delivered++; await db.update(pushSubscriptions).set({ lastSentAt: new Date() }).where(eq(pushSubscriptions.id, s.id)) }
       else console.error('[push] service answered', status)
     } catch (err) { console.error('[push] send failed', (err as Error).message) } // never let one device stop the rest
   }))
-  if (gone.length) await db.delete(pushSubscriptions).where(and(inArray(pushSubscriptions.id, gone), eq(pushSubscriptions.userId, userId)))
+  for (const s of gone) await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.id, s.id), eq(pushSubscriptions.userId, s.userId)))
   return delivered
+}
+
+// ---- Announcements from staff ---------------------------------------------------------------------------------------
+export type Audience = { university?: string | null; department?: string | null }
+export type BroadcastMessage = { title: string; body: string; url: string }
+
+/** Active students only; a campus and then a department narrow it. */
+const audienceWhere = (a: Audience): SQL => and(
+  eq(users.status, 'active'),
+  a.university ? eq(users.university, a.university) : undefined,
+  a.department ? eq(users.department, a.department) : undefined,
+)!
+
+/** How many students, and how many devices, an announcement to this audience would reach. */
+export async function audienceCounts(a: Audience) {
+  const [r] = await db.select({ students: countDistinct(pushSubscriptions.userId), devices: count(pushSubscriptions.id) })
+    .from(pushSubscriptions).innerJoin(users, eq(users.id, pushSubscriptions.userId)).where(audienceWhere(a))
+  return { students: Number(r?.students ?? 0), devices: Number(r?.devices ?? 0) }
+}
+
+/**
+ * Staff-written announcement to everyone in the audience who has push on. Unlike automatic notifications it ignores the
+ * per-kind throttle and "already in the app" rule: there is no in-app copy of an announcement, so the push is the only one.
+ */
+export async function broadcastPush(a: Audience, msg: BroadcastMessage) {
+  if (!pushEnabled) return { students: 0, devices: 0, delivered: 0 }
+  const subs = await db.select({ id: pushSubscriptions.id, userId: pushSubscriptions.userId, endpoint: pushSubscriptions.endpoint, p256dh: pushSubscriptions.p256dh, auth: pushSubscriptions.auth })
+    .from(pushSubscriptions).innerJoin(users, eq(users.id, pushSubscriptions.userId)).where(audienceWhere(a))
+  const payload: Payload = { ...msg, tag: 'broadcast' }
+  let delivered = 0
+  for (let i = 0; i < subs.length; i += 10) delivered += await sendToSubs(subs.slice(i, i + 10), payload) // ten at a time: never a flood
+  return { students: new Set(subs.map((s) => s.userId)).size, devices: subs.length, delivered }
 }
 
 // Every event published to a person is a candidate for a notification.

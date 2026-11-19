@@ -15,6 +15,7 @@ import { adminRoutes } from "./admin/routes"
 import { adminCampuses } from "./admin/campuses"
 import { adminList } from "./admin/lists"
 import { adminDepartmentRequests } from "./admin/department-requests"
+import { adminBroadcasts } from "./admin/broadcasts"
 import { adminPhotos } from "./admin/photos"
 import { adminBadges, adminRewards } from "./admin/rewards"
 import { photoRoutes } from "./routes/photos"
@@ -56,6 +57,7 @@ export const app = new Elysia()
   .use(adminList("departments"))
   .use(adminList("spots"))
   .use(adminDepartmentRequests)
+  .use(adminBroadcasts)
   .use(adminPhotos)
   .use(adminRewards)
   .use(adminBadges)

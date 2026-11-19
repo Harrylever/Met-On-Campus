@@ -257,6 +257,23 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
   createdAt: createdAt(),
 }, (t) => [index('push_subscriptions_user_idx').on(t.userId)])
 
+// One row per announcement staff sent to students' devices (see admin/broadcasts.ts). `university` and `department` are
+// the audience (both null = everyone); students/devices are who it was aimed at, delivered is how many devices accepted it.
+// adminId has no foreign key on purpose: the history outlives a staff account, like admin_audit.
+export const pushBroadcasts = pgTable('push_broadcasts', {
+  id: id(),
+  adminId: uuid('admin_id'),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  url: text('url').notNull(),
+  university: text('university'),
+  department: text('department'),
+  students: integer('students').notNull().default(0),
+  devices: integer('devices').notNull().default(0),
+  delivered: integer('delivered').notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [index('push_broadcasts_created_idx').on(t.createdAt)])
+
 // ---- Rewards: streaks and points ------------------------------------------------------------------------------------
 // Days are Nigerian calendar days (UTC+1, no daylight saving), stored as 'YYYY-MM-DD'. Romance never earns points.
 export const userProgress = pgTable('user_progress', {
