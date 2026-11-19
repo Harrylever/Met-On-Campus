@@ -1,0 +1,16 @@
+{
+  "name": "@moc/e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "prepare:db": "bun prepare.ts",
+    "test": "bun prepare.ts && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@types/bun": "^1.4.4",
+    "drizzle-orm": "^0.45.4",
+    "typescript": "^5.9.0"
+  }
+}
