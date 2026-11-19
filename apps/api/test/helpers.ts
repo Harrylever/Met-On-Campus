@@ -18,7 +18,7 @@ export async function resetAll() {
   await db.execute(sql`truncate table users, email_codes, admin_users, admin_audit restart identity cascade`)
   // The lists are staff-editable, so every test starts from the same state the migration leaves: the template (rows with no
   // campus), two open campuses that each have their own copy of it, and nothing else. Anything else a test needs it opens itself.
-  await db.execute(sql`truncate table departments, campus_spots, campuses, campus_interest`)
+  await db.execute(sql`truncate table departments, campus_spots, campuses, campus_interest, push_broadcasts`)
   await db.insert(departments).values(DEFAULT_DEPARTMENTS.map((name, i) => ({ name, sortOrder: (i + 1) * 10 })))
   await db.insert(campusSpots).values(DEFAULT_SPOTS.map((name, i) => ({ name, sortOrder: (i + 1) * 10 })))
   for (const [slug, name] of TEST_CAMPUSES) {
