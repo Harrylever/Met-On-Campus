@@ -51,6 +51,9 @@ const realSender: Sender = async (sub, payload) => {
   const d = generateRequestDetails({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify(payload),
     { TTL: 3600, urgency: 'normal', topic: payload.tag.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) || undefined })
   const res = await fetch(d.endpoint, { method: d.method, headers: d.headers as Record<string, string>, body: d.body as Uint8Array<ArrayBuffer>, signal: AbortSignal.timeout(8000) })
+  // A refusal says why in its body ("VapidPkHashMismatch", "BadWebPushTopic", ...). Log the service (host only: the path is the
+  // device's private address) and the reason, so a bare status code in the logs can be diagnosed.
+  if (!res.ok) console.error('[push] refused', res.status, new URL(sub.endpoint).host, (await res.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 200))
   return res.status
 }
 let send: Sender = realSender
