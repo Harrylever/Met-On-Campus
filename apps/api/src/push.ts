@@ -47,9 +47,16 @@ export type Sub = { endpoint: string; p256dh: string; auth: string }
 /** Sends one notification. Returns the push service's HTTP status. Replaceable, so tests can look at what would go out. */
 export type Sender = (sub: Sub, payload: Payload) => Promise<number>
 
+/**
+ * The Topic header makes a newer notification replace an older one of the same kind. Apple's push service rejects it
+ * (400 BadWebPushTopic) unless it is valid base64url text of at most 32 characters, which a plain word like "broadcast"
+ * or "badge" is not. So the tag is encoded, cutting on a byte boundary (24 bytes = 32 characters) so it always stays valid.
+ */
+export const pushTopic = (tag: string) => Buffer.from(tag).subarray(0, 24).toString('base64url') || undefined
+
 const realSender: Sender = async (sub, payload) => {
   const d = generateRequestDetails({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify(payload),
-    { TTL: 3600, urgency: 'normal', topic: payload.tag.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) || undefined })
+    { TTL: 3600, urgency: 'normal', topic: pushTopic(payload.tag) })
   const res = await fetch(d.endpoint, { method: d.method, headers: d.headers as Record<string, string>, body: d.body as Uint8Array<ArrayBuffer>, signal: AbortSignal.timeout(8000) })
   // A refusal says why in its body ("VapidPkHashMismatch", "BadWebPushTopic", ...). Log the service (host only: the path is the
   // device's private address) and the reason, so a bare status code in the logs can be diagnosed.

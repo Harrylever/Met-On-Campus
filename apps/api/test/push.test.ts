@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { pushSubscriptions, users } from '@moc/db'
 import { bus, db, topics } from '../src/context'
 import { env } from '../src/env'
-import { pushIdle, setPushSender, type Payload, type Sub } from '../src/push'
+import { pushIdle, pushTopic, setPushSender, type Payload, type Sub } from '../src/push'
 import * as presence from '../src/presence'
 import { call, makeUser, resetAll } from './helpers'
 
@@ -178,7 +178,7 @@ describe('the real sender', () => {
       expect(seen[0]!.path).toBe('/push/device-1')
       expect(seen[0]!.headers.auth).toMatch(/^vapid t=.+, k=/)         // signed with our VAPID key
       expect(seen[0]!.headers.enc).toBe('aes128gcm')                   // payload is encrypted for that device
-      expect(seen[0]!.headers.ttl).toBe('3600'); expect(seen[0]!.headers.topic).toBe('message')
+      expect(seen[0]!.headers.ttl).toBe('3600'); expect(seen[0]!.headers.topic).toBe(Buffer.from('message').toString('base64url'))
       expect(seen[0]!.bytes).toBeGreaterThan(100)
       expect((await rows(u.id))[0]!.lastSentAt).not.toBeNull()
       answer = 410
@@ -188,5 +188,28 @@ describe('the real sender', () => {
       bus.publish(topics.user(u.id), { type: 'message.new', intent: 'study', message: { senderId: o.id } }); await pushIdle()
       expect(await rows(u.id)).toHaveLength(0)
     } finally { srv.stop(true) }
+  })
+})
+
+describe('the Topic header', () => {
+  // Apple's push service answers 400 BadWebPushTopic unless Topic is valid base64url text of at most 32 characters. Plain
+  // words are not: a 9 or 5 letter word ("broadcast", "badge") can never be valid base64 text.
+  test('every notification kind gives a valid, distinct topic', () => {
+    const tags = ['invite', 'message', 'room', 'badge', 'broadcast', 'general']
+    const topics = tags.map(pushTopic)
+    for (const t of topics) {
+      expect(t).toMatch(/^[A-Za-z0-9_-]{1,32}$/)
+      expect(t.length % 4).not.toBe(1)                       // not decodable as base64 otherwise
+    }
+    expect(new Set(topics).size).toBe(tags.length)
+    expect(Buffer.from(topics[4]!, 'base64url').toString()).toBe('broadcast')
+  })
+
+  test('a long or odd tag is cut on a byte boundary, so it stays valid', () => {
+    for (const tag of ['x'.repeat(100), 'x'.repeat(25), 'é'.repeat(30), '!!??', '']) {
+      const t = pushTopic(tag)
+      if (t === undefined) { expect(tag).toBe(''); continue }
+      expect(t).toMatch(/^[A-Za-z0-9_-]{1,32}$/); expect(t.length % 4).not.toBe(1)
+    }
   })
 })
