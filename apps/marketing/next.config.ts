@@ -2,8 +2,9 @@ import type { NextConfig } from 'next'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// A static, no-login, no-forms site: strict framing/transport rules, and a CSP that allows the inline
-// bootstrap scripts Next emits for prerendered pages. (The staff platform, which has auth, uses nonces instead.)
+// A static, no-login site with one same-origin JSON endpoint (POST /volunteers/apply): strict framing/transport rules,
+// and a CSP that allows the inline bootstrap scripts Next emits for prerendered pages. The volunteer form submits with
+// fetch (connect-src 'self'), so form-action stays 'none'. (The staff platform, which has auth, uses nonces instead.)
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''),
