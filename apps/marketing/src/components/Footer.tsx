@@ -15,7 +15,7 @@ export function Footer() {
           <StarOnGithub />
         </div>
         <nav aria-label="Product"><h2 className="mb-3 font-display text-base">Product</h2>
-          <ul className={col}><li><a href={site.appUrl}>Open the app</a></li><li><Link href="/join">Scan to join</Link></li><li><Link href="/#how-it-works">How it works</Link></li><li><Link href="/safety">Safety</Link></li><li><Link href="/universities">For universities</Link></li></ul></nav>
+          <ul className={col}><li><a href={site.appUrl}>Open the app</a></li><li><Link href="/join">Scan to join</Link></li><li><Link href="/#how-it-works">How it works</Link></li><li><Link href="/safety">Safety</Link></li><li><Link href="/universities">For universities</Link></li><li><Link href="/volunteers">Volunteer</Link></li></ul></nav>
         <nav aria-label="Legal"><h2 className="mb-3 font-display text-base">Legal</h2>
           <ul className={col}><li><Link href="/terms">Terms of service</Link></li><li><Link href="/privacy">Privacy policy</Link></li></ul></nav>
         <div><h2 className="mb-3 font-display text-base">Contact</h2>
