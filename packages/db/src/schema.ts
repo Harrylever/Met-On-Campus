@@ -30,6 +30,7 @@ export const users = pgTable('users', {
   department: text('department').notNull(),
   level: integer('level').notNull(), // 100..500
   verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  gender: text('gender'), // optional: 'male' | 'female' | null (not set). Shown as an icon on Discover cards unless a mode hides it.
   status: userStatusEnum('status').notNull().default('active'),
   suspendedAt: timestamp('suspended_at', { withTimezone: true }),
   suspendedReason: text('suspended_reason'),
@@ -44,7 +45,7 @@ export const users = pgTable('users', {
   inviteCode: text('invite_code').notNull().unique().default(sql`substr(md5(random()::text || clock_timestamp()::text), 1, 10)`),
   referredBy: uuid('referred_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
-}, (t) => [check('level_range', sql`${t.level} between 100 and 900`)])
+}, (t) => [check('level_range', sql`${t.level} between 100 and 900`), check('gender_values', sql`${t.gender} in ('male', 'female')`)])
 
 export const emailCodes = pgTable('email_codes', {
   email: text('email').primaryKey(),
@@ -71,6 +72,7 @@ export const intentProfiles = pgTable('intent_profiles', {
   usuallyFree: text('usually_free').notNull().default(''),
   usualSpot: text('usual_spot').notNull().default(''),
   hideFromDepartment: boolean('hide_from_department').notNull().default(false), // romance only
+  showGender: boolean('show_gender').notNull().default(true), // show the student's gender icon on this mode's cards (when they set one)
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.userId, t.intent] }), index('profiles_intent_idx').on(t.intent, t.enabled)])
 
