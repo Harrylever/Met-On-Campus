@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { GenderIcon } from '~/components/GenderIcon'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap, INTENTS, type Intent } from '~/lib/api'
@@ -110,7 +111,7 @@ function Discover() {
               </div>
               <div className="flex flex-col gap-3 p-4 pt-1">
                 <div>
-                  <h2 className="text-[17px] font-semibold">{s.name} • {s.level}L {deptLabel(s.department)}</h2>
+                  <h2 className="text-[17px] font-semibold">{s.name}{s.gender && <>{' '}<GenderIcon gender={s.gender} /></>} • {s.level}L {deptLabel(s.department)}</h2>
                   <span className="text-[13px] text-ink-2">{s.usualSpot ? `Usually at ${s.usualSpot}` : 'No usual spot yet'}</span>
                 </div>
                 {s.prompt && <div className="rounded-[10px] border border-(--i-line) bg-(--i-bg) p-3"><span className="label text-(--i-ink)">{c.label}</span><p className="mt-1">{s.prompt}</p></div>}

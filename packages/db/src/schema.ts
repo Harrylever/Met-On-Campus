@@ -30,7 +30,7 @@ export const users = pgTable('users', {
   department: text('department').notNull(),
   level: integer('level').notNull(), // 100..500
   verifiedAt: timestamp('verified_at', { withTimezone: true }),
-  gender: text('gender'), // optional: 'male' | 'female' | null (not set). Shown as an icon on Discover cards unless a mode hides it.
+  gender: text('gender').$type<'male' | 'female'>(), // optional: 'male' | 'female' | null (not set). Shown as an icon on Discover cards unless a mode hides it.
   status: userStatusEnum('status').notNull().default('active'),
   suspendedAt: timestamp('suspended_at', { withTimezone: true }),
   suspendedReason: text('suspended_reason'),
