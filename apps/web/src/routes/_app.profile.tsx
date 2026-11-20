@@ -84,7 +84,7 @@ function Profile() {
       {meta.data
         ? INTENTS.map((i) => (
           <div key={i.id} hidden={mode !== i.id}>
-            <ModeForm mode={i.id} profile={profileFor(i.id)} meta={meta.data} name={me.user.name} hasGender={!!me.user.gender} onSaved={() => router.invalidate()} onDirty={(d) => setDirty((x) => (x[i.id] === d ? x : { ...x, [i.id]: d }))} />
+            <ModeForm mode={i.id} profile={profileFor(i.id)} meta={meta.data} name={me.user.name} hasGender={!!gender} onSaved={() => router.invalidate()} onDirty={(d) => setDirty((x) => (x[i.id] === d ? x : { ...x, [i.id]: d }))} />
           </div>
         ))
         : meta.isError ? <p className="card text-sm text-ink-2" role="alert">Could not load your profile options. Refresh to try again.</p>

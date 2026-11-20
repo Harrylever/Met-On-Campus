@@ -89,3 +89,12 @@ test("a student's gender icon appears on their card, and disappears when they cl
   await expect(viewerPage.getByRole('article').filter({ hasText: 'Amara' })).toBeVisible()
   await expect(viewerPage.getByRole('img', { name: 'Female' })).toHaveCount(0)
 })
+
+test("the per-mode gender switch is there as soon as a gender is picked, before it is saved", async ({ browser, playwright }) => {
+  const amara = await makeStudent(playwright, 'Amara')
+  const page = await (await browserAs(browser, amara)).newPage()
+  await page.goto('/profile')
+  await expect(page.getByRole('switch', { name: /Show my gender on my cards/ })).toHaveCount(0)
+  await page.getByLabel('Gender (optional)').selectOption('female')
+  await expect(page.getByRole('switch', { name: /Show my gender on my cards/ }).first()).toBeVisible()
+})
