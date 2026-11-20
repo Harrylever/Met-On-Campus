@@ -19,6 +19,7 @@ describe('gender storage', () => {
   test('the database refuses any gender other than male or female', async () => {
     const a = await makeUser('Amina')
     await db.execute(sql`update users set gender = 'female' where id = ${a.id}`) // a valid value is accepted
-    await expect(db.execute(sql`update users set gender = 'x' where id = ${a.id}`)).rejects.toThrow()
+    const bad = async () => { await db.execute(sql`update users set gender = 'x' where id = ${a.id}`) }
+    await expect(bad()).rejects.toThrow()
   })
 })
