@@ -47,6 +47,8 @@ export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
           userId: u.id, name: u.name, department: u.department, level: u.level, intent,
           prompt: p.prompt, bio: p.bio, tags: p.tags, usuallyFree: p.usuallyFree, usualSpot: p.usualSpot,
           inCommon: tagsInCommon, onCampusNow: hereNow.has(u.id),
+          // Only when they set one and this mode shows it; otherwise the key is absent, not null.
+          ...(u.gender && p.showGender ? { gender: u.gender } : {}),
           // Romance photos stay hidden until the Spark between you was accepted.
           photoId: (intent !== 'romance' || rel?.status === 'accepted') ? (photos.get(u.id) ?? null) : null,
           request: rel ? { id: rel.id, status: rel.status, direction: rel.fromUserId === user.id ? 'sent' : 'received' } : null,

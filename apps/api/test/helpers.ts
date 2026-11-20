@@ -31,13 +31,13 @@ export async function resetAll() {
 
 export type TestUser = Awaited<ReturnType<typeof makeUser>>
 /** Creates a verified user with a live session, bypassing email. `modes` are enabled intent profiles. */
-export async function makeUser(name: string, opts: { department?: string; level?: number; modes?: Intent[]; hide?: boolean; tags?: string[]; university?: string } = {}) {
+export async function makeUser(name: string, opts: { department?: string; level?: number; modes?: Intent[]; hide?: boolean; tags?: string[]; university?: string; gender?: 'male' | 'female'; showGender?: boolean } = {}) {
   const [u] = await db.insert(users).values({
     email: `${name.toLowerCase()}@st.${opts.university ?? 'futminna'}.edu.ng`, university: opts.university ?? 'futminna', name,
-    department: opts.department ?? 'Computer Science', level: opts.level ?? 300, verifiedAt: new Date(),
+    department: opts.department ?? 'Computer Science', level: opts.level ?? 300, verifiedAt: new Date(), gender: opts.gender ?? null,
   }).returning()
   for (const intent of opts.modes ?? ['study']) {
-    await db.insert(intentProfiles).values({ userId: u!.id, intent, enabled: true, prompt: `${name} ${intent}`, tags: opts.tags ?? ['CSS 411'], hideFromDepartment: !!opts.hide })
+    await db.insert(intentProfiles).values({ userId: u!.id, intent, enabled: true, prompt: `${name} ${intent}`, tags: opts.tags ?? ['CSS 411'], hideFromDepartment: !!opts.hide, showGender: opts.showGender ?? true })
   }
   const token = `tok-${name}-${crypto.randomUUID()}`
   await db.insert(sessions).values({ tokenHash: sha(token), userId: u!.id, expiresAt: new Date(Date.now() + 864e5) })

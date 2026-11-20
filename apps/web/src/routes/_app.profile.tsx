@@ -13,6 +13,7 @@ import { InstallCard } from '~/components/InstallApp'
 import { PushNotifications } from '~/components/PushNotifications'
 import { forgetThisDevice } from '~/lib/push'
 import { looksLikeMatric, validPersonName } from '~/lib/name'
+import type { Gender } from '~/lib/gender'
 import { BlockedListSkeleton, LoadingRegion, ProfileFormSkeleton, Skeleton, useSkeleton } from '~/components/Skeleton'
 
 export const Route = createFileRoute('/_app/profile')({ component: Profile })
@@ -36,12 +37,14 @@ function Profile() {
   const [name, setName] = useState(me.user.name)
   const [department, setDepartment] = useState(me.user.department)
   const [level, setLevel] = useState(me.user.level)
-  const basicsDirty = name !== me.user.name || department !== me.user.department || level !== me.user.level
+  const [gender, setGender] = useState<Gender | ''>(me.user.gender ?? '')
+  const qc = useQueryClient()
+  const basicsDirty = name !== me.user.name || department !== me.user.department || level !== me.user.level || gender !== (me.user.gender ?? '')
   const anyDirty = basicsDirty || Object.values(dirty).some(Boolean)
   const [deleted, setDeleted] = useState(false) // once the account is gone there is nothing to save
   // Leaving with unsaved edits asks first (in-app navigation and closing the tab).
   useBlocker({ shouldBlockFn: () => !window.confirm('You have unsaved changes. Leave without saving?'), enableBeforeUnload: () => anyDirty && !deleted, disabled: !anyDirty || deleted })
-  const saveBasics = useMutation({ mutationFn: () => unwrap(api.me.patch({ name, department, level })), onSuccess: () => router.invalidate() })
+  const saveBasics = useMutation({ mutationFn: () => unwrap(api.me.patch({ name, department, level, gender: gender || null })), onSuccess: () => { router.invalidate(); qc.invalidateQueries({ queryKey: ['discover'] }) } })
 
   return (
     <div data-intent={mode} className="flex flex-col gap-5">
@@ -62,6 +65,13 @@ function Profile() {
           <label className="block text-sm font-semibold">Level
             <select className="input mt-2 h-11 font-normal" value={level} onChange={(e) => setLevel(+e.target.value)}>{[100, 200, 300, 400, 500].map((l) => <option key={l} value={l}>{l}L</option>)}</select></label>
         </div>
+        <label className="block text-sm font-semibold">Gender (optional)
+          <select className="input mt-2 h-11 font-normal" value={gender} onChange={(e) => setGender(e.target.value as Gender | '')} aria-describedby="profile-gender-hint">
+            <option value="">Prefer not to say</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+          <span id="profile-gender-hint" className="mt-1.5 block text-xs font-normal text-ink-2">Shown as a small icon on your cards. You can hide it in each mode below.</span></label>
         <DepartmentRequest />
         <button className="btn" disabled={saveBasics.isPending || (name !== me.user.name && !validPersonName(name))} onClick={() => saveBasics.mutate()}>{saveBasics.isSuccess && !basicsDirty ? 'Saved' : 'Save details'}</button>
         {basicsDirty && <p className="text-sm text-ink-2" role="status">You have unsaved changes to your details.</p>}
@@ -74,7 +84,7 @@ function Profile() {
       {meta.data
         ? INTENTS.map((i) => (
           <div key={i.id} hidden={mode !== i.id}>
-            <ModeForm mode={i.id} profile={profileFor(i.id)} meta={meta.data} name={me.user.name} onSaved={() => router.invalidate()} onDirty={(d) => setDirty((x) => (x[i.id] === d ? x : { ...x, [i.id]: d }))} />
+            <ModeForm mode={i.id} profile={profileFor(i.id)} meta={meta.data} name={me.user.name} hasGender={!!gender} onSaved={() => router.invalidate()} onDirty={(d) => setDirty((x) => (x[i.id] === d ? x : { ...x, [i.id]: d }))} />
           </div>
         ))
         : meta.isError ? <p className="card text-sm text-ink-2" role="alert">Could not load your profile options. Refresh to try again.</p>
@@ -96,7 +106,7 @@ function Profile() {
 }
 
 type P = NonNullable<ReturnType<typeof Route.useRouteContext>['me']['profiles'][number]>
-function ModeForm({ mode, profile, meta, name, onSaved, onDirty }: { mode: Intent; profile?: P; meta: Meta; name: string; onSaved: () => void; onDirty: (dirty: boolean) => void }) {
+function ModeForm({ mode, profile, meta, name, hasGender, onSaved, onDirty }: { mode: Intent; profile?: P; meta: Meta; name: string; hasGender: boolean; onSaved: () => void; onDirty: (dirty: boolean) => void }) {
   const [enabled, setEnabled] = useState(profile?.enabled ?? false)
   const [prompt, setPrompt] = useState(profile?.prompt ?? '')
   // Prompt suggestions: one shuffled pass per mode. `undo` holds what the person had typed if a suggestion replaced it.
@@ -121,19 +131,20 @@ function ModeForm({ mode, profile, meta, name, onSaved, onDirty }: { mode: Inten
   const usuallyFree = composeFree(freeSel, freeNote, meta.freeTimes)
   const [usualSpot, setSpot] = useState(profile?.usualSpot ?? '')
   const [hide, setHide] = useState(profile?.hideFromDepartment ?? true)
+  const [showGender, setShowGender] = useState(profile?.showGender ?? true)
   // Keep a spot you already have visible even if staff archived it, so saving never silently clears it.
   const spotOptions = [...new Set([profile?.usualSpot ?? '', ...meta.spots])].filter(Boolean)
   const qc = useQueryClient()
 
   // What is on screen now vs what was last saved, to know when there is something to lose.
-  const snapshot = JSON.stringify([enabled, prompt, bio, tags, usuallyFree, usualSpot, mode === 'romance' ? hide : null])
+  const snapshot = JSON.stringify([enabled, prompt, bio, tags, usuallyFree, usualSpot, mode === 'romance' ? hide : null, showGender])
   const [savedAs, setSavedAs] = useState(snapshot)
   const isDirty = snapshot !== savedAs
   useEffect(() => { onDirty(isDirty) }, [isDirty]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = useMutation({
     mutationFn: () => unwrap(api.me.profiles({ intent: mode }).put({
-      enabled, prompt, bio, usuallyFree, usualSpot,
+      enabled, prompt, bio, usuallyFree, usualSpot, showGender,
       tags: tags.split(",").map((t: string) => t.trim()).filter(Boolean).slice(0, 6),
       ...(mode === 'romance' ? { hideFromDepartment: hide } : {}),
     })),
@@ -147,6 +158,12 @@ function ModeForm({ mode, profile, meta, name, onSaved, onDirty }: { mode: Inten
         <input type="checkbox" role="switch" className="size-6" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
       </label>
       <PhotoField mode={mode} modeOn={profile?.enabled ?? false} name={name} />
+      {hasGender && (
+        <label className="flex items-center justify-between gap-3 font-semibold">
+          <span>Show my gender on my cards<span className="block text-xs font-normal text-ink-2">Only shown if you set it in About you.</span></span>
+          <input type="checkbox" role="switch" className="size-6" checked={showGender} onChange={(e) => setShowGender(e.target.checked)} />
+        </label>
+      )}
       <div>
         <label htmlFor={promptId} className={field}>Prompt</label>
         {/* The button sits inside the input's right edge. It fills the field with a ready-made prompt (see lib/prompts.ts). */}

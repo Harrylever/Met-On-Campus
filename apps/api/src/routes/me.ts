@@ -21,6 +21,7 @@ const ProfileBody = t.Object({
   usuallyFree: t.Optional(t.String({ maxLength: 160 })),
   usualSpot: t.Optional(t.String({ maxLength: 80 })),
   hideFromDepartment: t.Optional(t.Boolean()),
+  showGender: t.Optional(t.Boolean()),
 })
 
 export const meRoutes = new Elysia({ prefix: "/me" })
@@ -30,7 +31,7 @@ export const meRoutes = new Elysia({ prefix: "/me" })
       .select()
       .from(intentProfiles)
       .where(eq(intentProfiles.userId, user.id))
-    return { user: publicSelf(user), profiles, onboarded: profiles.length > 0, settings: { emailAlerts: user.emailAlerts } }
+    return { user: { ...publicSelf(user), gender: user.gender }, profiles, onboarded: profiles.length > 0, settings: { emailAlerts: user.emailAlerts } }
   })
   .patch(
     "/",
@@ -59,7 +60,7 @@ export const meRoutes = new Elysia({ prefix: "/me" })
         .set(changes)
         .where(eq(users.id, user.id))
         .returning()
-      return { user: publicSelf(row!) }
+      return { user: { ...publicSelf(row!), gender: row!.gender } }
     },
     {
       body: t.Object({
@@ -67,6 +68,7 @@ export const meRoutes = new Elysia({ prefix: "/me" })
         department: t.Optional(t.String({ minLength: 1, maxLength: 80 })),
         level: t.Optional(t.Integer({ minimum: 100, maximum: 900 })),
         emailAlerts: t.Optional(t.Boolean()),
+        gender: t.Optional(t.Union([t.Literal("male"), t.Literal("female"), t.Null()])),
       }),
     },
   )
