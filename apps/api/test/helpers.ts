@@ -6,6 +6,7 @@ import { encrypt, hashBackupCode, newBackupCodes } from '../src/admin/crypto'
 import { hotp, base32Decode, newTotpSecret } from '../src/admin/totp'
 import { app } from '../src'
 import { db, redis } from '../src/context'
+import { setLiveKit, type LiveKit, type Participant } from '../src/livekit'
 
 const sha = (s: string) => new Bun.CryptoHasher('sha256').update(s).digest('hex')
 export type Intent = 'study' | 'friends' | 'romance'
@@ -27,6 +28,35 @@ export async function resetAll() {
     await db.insert(campusSpots).values(DEFAULT_SPOTS.map((d, i) => ({ name: d, university: slug, sortOrder: (i + 1) * 10 })))
   }
   await redis.flushdb()
+  setLiveKit(fakeLiveKit())
+}
+
+/** A controllable in-memory LiveKit. `failNext()` makes the very next call throw; `setConfigured(false)` simulates missing settings. */
+export function fakeLiveKit() {
+  const rooms = new Map<string, Participant[]>()
+  let isConfigured = true
+  let failing = false
+  const guard = () => { if (failing) { failing = false; throw new Error('livekit down') } }
+  const fake = {
+    closed: [] as string[],
+    removed: [] as { room: string; identity: string }[],
+    ensured: [] as { room: string; maxParticipants: number }[],
+    tokens: [] as { room: string; identity: string; name: string; expiresAt: Date }[],
+    setParticipants(room: string, list: Participant[]) { rooms.set(room, list) },
+    setConfigured(v: boolean) { isConfigured = v },
+    failNext() { failing = true },
+    configured: () => isConfigured,
+    url: () => 'wss://livekit.test',
+    async issueToken(a: { room: string; identity: string; name: string; expiresAt: Date }) { guard(); fake.tokens.push(a); return `fake-token:${a.room}:${a.identity}` },
+    async ensureRoom(room: string, maxParticipants: number) { guard(); fake.ensured.push({ room, maxParticipants }); if (!rooms.has(room)) rooms.set(room, []) },
+    async participants(room: string) { guard(); return [...(rooms.get(room) ?? [])] },
+    async closeRoom(room: string) { guard(); fake.closed.push(room); rooms.delete(room) },
+    async removeParticipant(room: string, identity: string) {
+      guard(); fake.removed.push({ room, identity })
+      const list = rooms.get(room); if (list) rooms.set(room, list.filter((p) => p.identity !== identity))
+    },
+  } satisfies LiveKit & Record<string, unknown>
+  return fake
 }
 
 export type TestUser = Awaited<ReturnType<typeof makeUser>>
