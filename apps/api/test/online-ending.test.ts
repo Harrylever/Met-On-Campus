@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test'
-import { roomMembers, rooms } from '@moc/db'
+import { roomMembers, rooms, users } from '@moc/db'
 import { and, eq } from 'drizzle-orm'
 import { bus, db } from '../src/context'
 import { setLiveKit, roomName } from '../src/livekit'
-import { sweepEndedRooms } from '../src/roomsweep'
+import { enforceLiveMembership, sweepEndedRooms } from '../src/roomsweep'
 import { adminCall, adminLogin, call, fakeLiveKit, makeAdmin, makeUser, resetAll, type TestUser } from './helpers'
 
 let fake: ReturnType<typeof fakeLiveKit>
@@ -167,5 +167,62 @@ describe('suspending', () => {
     const r = await adminCall('POST', `/admin/reports/${rep}/resolve`, { action: 'suspend', note: 'Repeated harassment of students' }, { session: S })
     expect(r.status).toBe(200)
     expect((await call(bad, 'GET', '/me')).status).toBe(401)
+  })
+})
+
+describe('membership enforcement', () => {
+  const here = (room: { id: string }, ...us: { id: string; name: string }[]) =>
+    fake.setParticipants(roomName(room.id), us.map((u) => ({ identity: u.id, name: u.name })))
+
+  test('a removed member who reconnects with their still-valid token is kicked on the next enforcement pass', async () => {
+    const host = await makeUser('Host', { premium: true }), ann = await makeUser('Ann')
+    const room = await makeRoom(host); await member(room, ann)
+    await remove(host, room, ann)
+    fake.removed.length = 0
+    here(room, host, ann)
+    expect(await enforceLiveMembership()).toBe(1)
+    expect(fake.removed).toEqual([{ room: roomName(room.id), identity: ann.id }])
+  })
+
+  test('a participant who was never a member (or only pending) is kicked', async () => {
+    const host = await makeUser('Host', { premium: true }), out = await makeUser('Out'), pen = await makeUser('Pen')
+    const room = await makeRoom(host); await member(room, pen, 'pending')
+    here(room, host, out, pen)
+    expect(await enforceLiveMembership()).toBe(2)
+    expect(fake.removed.map((r) => r.identity).sort()).toEqual([out.id, pen.id].sort())
+  })
+
+  test('a suspended student still present is kicked', async () => {
+    const host = await makeUser('Host', { premium: true }), bad = await makeUser('Bad')
+    const room = await makeRoom(host); await member(room, bad)
+    await db.update(users).set({ status: 'suspended' }).where(eq(users.id, bad.id))
+    here(room, host, bad)
+    expect(await enforceLiveMembership()).toBe(1)
+    expect(fake.removed).toEqual([{ room: roomName(room.id), identity: bad.id }])
+  })
+
+  test('approved members and the host are left alone', async () => {
+    const host = await makeUser('Host', { premium: true }), ann = await makeUser('Ann')
+    const room = await makeRoom(host); await member(room, ann)
+    here(room, host, ann)
+    expect(await enforceLiveMembership()).toBe(0)
+    expect(fake.removed).toHaveLength(0)
+  })
+
+  test('a non-UUID identity is left alone and does not break the pass', async () => {
+    const host = await makeUser('Host', { premium: true }), out = await makeUser('Out')
+    const room = await makeRoom(host)
+    here(room, { id: 'egress-recorder', name: 'Rec' }, out)
+    expect(await enforceLiveMembership()).toBe(1)
+    expect(fake.removed).toEqual([{ room: roomName(room.id), identity: out.id }])
+  })
+
+  test('one failing room does not stop the pass', async () => {
+    const host = await makeUser('Host', { premium: true }), o1 = await makeUser('One'), o2 = await makeUser('Two')
+    const a = await makeRoom(host), b = await makeRoom(host)
+    here(a, o1); here(b, o2)
+    fake.failNext() // the first participants() call throws
+    expect(await enforceLiveMembership()).toBe(1)
+    expect(fake.removed).toHaveLength(1)
   })
 })
