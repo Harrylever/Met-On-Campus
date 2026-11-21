@@ -1,6 +1,6 @@
 import { expect, type Browser, type BrowserContext, type PlaywrightWorkerArgs } from '@playwright/test'
 import { base32Decode, hotp } from '../../api/src/admin/totp'
-import { URLS } from '../env'
+import { API_ENV, DATABASE_URL, URLS } from '../env'
 
 /** The 6-digit code an authenticator app would show right now. */
 export const authenticatorCode = (secret: string) => hotp(base32Decode(secret), Math.floor(Date.now() / 30_000))
@@ -36,4 +36,15 @@ export async function browserAs(browser: Browser, student: Student): Promise<Bro
   const context = await browser.newContext({ baseURL: URLS.web })
   await context.addCookies([{ name: 'moc_session', value: student.token, domain: 'localhost', path: '/' }])
   return context
+}
+
+/**
+ * Makes this student premium for a day (the flag online-room hosts need), straight in the e2e database. The test process
+ * has no API environment of its own, so it is set (to the throwaway database) before the API code is first loaded.
+ */
+export async function makePremium(student: Student): Promise<void> {
+  if (!/_e2e(\?|$)/.test(DATABASE_URL)) throw new Error(`Refusing to touch "${DATABASE_URL}". The database name must end in _e2e.`)
+  Object.assign(process.env, API_ENV)
+  const { setPremium } = await import('../../api/src/premium')
+  await setPremium(student.email, 1)
 }

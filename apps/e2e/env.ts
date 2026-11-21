@@ -34,5 +34,10 @@ export const API_ENV: Record<string, string> = {
   RESEND_API_KEY: "", // codes stay in the dev outbox, which /dev/outbox/:email reads
   ALERTS_ENABLED: "false",
   TRUST_PROXY: "false",
+  // TEST-ONLY fake LiveKit settings so the UI treats online rooms as available. Nothing here is a real server or key, and
+  // the tests never click "Join voice", so nothing ever connects.
+  LIVEKIT_URL: "wss://e2e.invalid",
+  LIVEKIT_API_KEY: "e2e-only-livekit-key",
+  LIVEKIT_API_SECRET: "e2e-only-livekit-secret-0123456789abcdef",
   NODE_ENV: "development",
 }
