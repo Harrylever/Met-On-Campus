@@ -1,0 +1,145 @@
+import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test'
+import { roomMembers, rooms } from '@moc/db'
+import { and, eq } from 'drizzle-orm'
+import { bus, db } from '../src/context'
+import { setLiveKit, roomName } from '../src/livekit'
+import { sweepEndedRooms } from '../src/roomsweep'
+import { adminCall, adminLogin, call, fakeLiveKit, makeAdmin, makeUser, resetAll, type TestUser } from './helpers'
+
+let fake: ReturnType<typeof fakeLiveKit>
+beforeEach(async () => { await resetAll(); fake = fakeLiveKit(); setLiveKit(fake) })
+afterEach(() => { setSystemTime(); bus.attach(() => {}) })
+
+const H = 3600_000, MIN = 60_000
+async function makeRoom(host: TestUser, o: Partial<typeof rooms.$inferInsert> = {}) {
+  const now = Date.now()
+  const [r] = await db.insert(rooms).values({
+    intent: 'study', tag: 'CSS 411', title: 'Late night', place: 'Online', mode: 'online', capacity: 3,
+    startsAt: new Date(now - H), endsAt: new Date(now + H), hostId: host.id, university: host.university, ...o,
+  }).returning()
+  await db.insert(roomMembers).values({ roomId: r!.id, userId: host.id, status: 'approved' })
+  return r!
+}
+const member = (room: { id: string }, u: TestUser, status: 'pending' | 'approved' | 'declined' = 'approved') =>
+  db.insert(roomMembers).values({ roomId: room.id, userId: u.id, status })
+const remove = (host: TestUser, room: { id: string }, u: { id: string }) => call(host, 'POST', `/rooms/${room.id}/members/${u.id}/remove`)
+const statusOf = async (room: { id: string }, u: { id: string }) =>
+  (await db.select().from(roomMembers).where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, u.id))))[0]
+
+describe('the sweep', () => {
+  test('the sweep closes the call of a room that has just ended and not one still live or ended long ago', async () => {
+    const host = await makeUser('Host', { premium: true })
+    const justEnded = await makeRoom(host, { endsAt: new Date(Date.now() - 5 * MIN) })
+    await makeRoom(host, { endsAt: new Date(Date.now() + H) })
+    await makeRoom(host, { endsAt: new Date(Date.now() - 2 * H) })
+    await makeRoom(host, { endsAt: new Date(Date.now() - 5 * MIN), cancelledAt: new Date() })
+    await makeRoom(host, { mode: 'physical', place: 'Library', endsAt: new Date(Date.now() - 5 * MIN) })
+    expect(await sweepEndedRooms()).toBe(1)
+    expect(fake.closed).toEqual([roomName(justEnded.id)])
+  })
+
+  test('the sweep survives LiveKit failing and reports the rest', async () => {
+    const host = await makeUser('Host', { premium: true })
+    await makeRoom(host, { endsAt: new Date(Date.now() - 2 * MIN) })
+    await makeRoom(host, { endsAt: new Date(Date.now() - 3 * MIN) })
+    fake.failNext()
+    expect(await sweepEndedRooms()).toBe(1)
+    expect(fake.closed).toHaveLength(1)
+  })
+})
+
+describe('removing a member', () => {
+  test('the host can remove an approved member: status becomes declined, the member is disconnected, gets a room.decision declined event, capacity is freed', async () => {
+    const host = await makeUser('Host', { premium: true }), ann = await makeUser('Ann'), bob = await makeUser('Bob'), cy = await makeUser('Cy')
+    const room = await makeRoom(host); await member(room, ann); await member(room, bob)
+    await member(room, cy, 'pending')
+    expect((await call(host, 'POST', `/rooms/${room.id}/requests/${cy.id}`, { decision: 'approved' })).json.error).toBe('room_full')
+    const seen: { topic: string; payload: any }[] = []
+    bus.attach((topic, payload) => seen.push({ topic, payload }))
+    const r = await remove(host, room, ann)
+    expect(r.status).toBe(200)
+    const row = await statusOf(room, ann)
+    expect(row!.status).toBe('declined'); expect(row!.decisionSeenAt).toBeNull()
+    expect(fake.removed).toEqual([{ room: roomName(room.id), identity: ann.id }])
+    expect(seen).toContainEqual({ topic: `user:${ann.id}`, payload: { type: 'room.decision', roomId: room.id, decision: 'declined' } })
+    expect((await call(host, 'POST', `/rooms/${room.id}/requests/${cy.id}`, { decision: 'approved' })).status).toBe(200)
+  })
+
+  test('a removed member cannot join and cannot request again', async () => {
+    const host = await makeUser('Host', { premium: true }), ann = await makeUser('Ann')
+    const room = await makeRoom(host); await member(room, ann)
+    await remove(host, room, ann)
+    const j = await call(ann, 'POST', `/rooms/${room.id}/join`)
+    expect(j.status).toBe(403); expect(j.json.error).toBe('not_a_member')
+    await call(ann, 'POST', `/rooms/${room.id}/request`)
+    expect((await statusOf(room, ann))!.status).toBe('declined')
+    expect((await call(ann, 'POST', `/rooms/${room.id}/join`)).status).toBe(403)
+  })
+
+  test('the host cannot remove themselves (422)', async () => {
+    const host = await makeUser('Host', { premium: true }); const room = await makeRoom(host)
+    expect((await remove(host, room, host)).status).toBe(422)
+    expect((await statusOf(room, host))!.status).toBe('approved')
+  })
+
+  test('a non-host gets 403 host_only', async () => {
+    const host = await makeUser('Host', { premium: true }), ann = await makeUser('Ann'), bob = await makeUser('Bob')
+    const room = await makeRoom(host); await member(room, ann); await member(room, bob)
+    const r = await remove(ann, room, bob)
+    expect(r.status).toBe(403); expect(r.json.error).toBe('host_only')
+    expect((await statusOf(room, bob))!.status).toBe('approved')
+    expect(fake.removed).toHaveLength(0)
+  })
+
+  test('removing someone who is not approved is 404', async () => {
+    const host = await makeUser('Host', { premium: true }), pen = await makeUser('Pen'), out = await makeUser('Out')
+    const room = await makeRoom(host); await member(room, pen, 'pending')
+    expect((await remove(host, room, pen)).status).toBe(404)
+    expect((await remove(host, room, out)).status).toBe(404)
+    const phys = await makeRoom(host, { mode: 'physical', place: 'Library' }); await member(phys, out)
+    expect((await remove(host, phys, out)).status).toBe(404)
+    expect((await statusOf(phys, out))!.status).toBe('approved')
+    expect(fake.removed).toHaveLength(0)
+  })
+})
+
+describe('cancelling', () => {
+  test('cancelling an online room closes its call, and cancelling still succeeds if LiveKit fails', async () => {
+    const host = await makeUser('Host', { premium: true })
+    const a = await makeRoom(host)
+    expect((await call(host, 'DELETE', `/rooms/${a.id}`)).status).toBe(200)
+    expect(fake.closed).toEqual([roomName(a.id)])
+    const b = await makeRoom(host)
+    fake.failNext()
+    expect((await call(host, 'DELETE', `/rooms/${b.id}`)).status).toBe(200)
+    expect((await db.select().from(rooms).where(eq(rooms.id, b.id)))[0]!.cancelledAt).not.toBeNull()
+    const phys = await makeRoom(host, { mode: 'physical', place: 'Library' })
+    await call(host, 'DELETE', `/rooms/${phys.id}`)
+    expect(fake.closed).toEqual([roomName(a.id)])
+  })
+})
+
+describe('suspending', () => {
+  test('suspending a student removes them from live calls they are in', async () => {
+    const host = await makeUser('Host', { premium: true }), bad = await makeUser('Bad')
+    const live = await makeRoom(host); await member(live, bad)
+    const later = await makeRoom(host, { startsAt: new Date(Date.now() + H), endsAt: new Date(Date.now() + 2 * H) }); await member(later, bad)
+    const notIn = await makeRoom(host); await member(notIn, bad, 'pending')
+    const S = await adminLogin(await makeAdmin())
+    const rep = (await call(host, 'POST', '/reports', { userId: bad.id, reason: 'harassment' })).json.id as string
+    const r = await adminCall('POST', `/admin/reports/${rep}/resolve`, { action: 'suspend', note: 'Repeated harassment of students' }, { session: S })
+    expect(r.status).toBe(200)
+    expect(fake.removed).toEqual([{ room: roomName(live.id), identity: bad.id }])
+  })
+
+  test('suspension still succeeds if LiveKit fails', async () => {
+    const host = await makeUser('Host', { premium: true }), bad = await makeUser('Bad')
+    const live = await makeRoom(host); await member(live, bad)
+    const S = await adminLogin(await makeAdmin())
+    const rep = (await call(host, 'POST', '/reports', { userId: bad.id, reason: 'harassment' })).json.id as string
+    fake.failNext()
+    const r = await adminCall('POST', `/admin/reports/${rep}/resolve`, { action: 'suspend', note: 'Repeated harassment of students' }, { session: S })
+    expect(r.status).toBe(200)
+    expect((await call(bad, 'GET', '/me')).status).toBe(401)
+  })
+})

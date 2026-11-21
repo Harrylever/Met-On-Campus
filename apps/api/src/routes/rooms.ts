@@ -127,6 +127,20 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
     return { ok: true }
   }, { body: t.Object({ decision: t.Union([t.Literal('approved'), t.Literal('declined')]) }) })
 
+  // Host: remove an approved member from an online room. They are declined (which frees the place and stops them asking again) and disconnected.
+  .post('/:id/members/:userId/remove', async ({ user, params, status }) => {
+    const [room] = await db.select().from(rooms).where(eq(rooms.id, params.id)).limit(1)
+    if (!room || room.mode !== 'online') return status(404, { error: 'not_found' })
+    if (room.hostId !== user.id) return status(403, { error: 'host_only' })
+    if (params.userId === user.id) return status(422, { error: 'cannot_remove_host' })
+    const [m] = await db.update(roomMembers).set({ status: 'declined', decisionSeenAt: null })
+      .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, params.userId), eq(roomMembers.status, 'approved'))).returning()
+    if (!m) return status(404, { error: 'not_found' })
+    try { await livekit.removeParticipant(roomName(room.id), params.userId) } catch (e) { console.error('room remove: disconnecting failed:', e instanceof Error ? e.message : 'unknown error') }
+    bus.publish(topics.user(params.userId), { type: 'room.decision', roomId: room.id, decision: 'declined' })
+    return { ok: true }
+  }, { params: t.Object({ id: t.String({ format: 'uuid' }), userId: t.String({ format: 'uuid' }) }) })
+
   // Host: change a room's details. Everyone who has a place is told. Capacity cannot drop below the people already in.
   .patch('/:id', async ({ user, params, body, status, set }) => {
     const over = await limited(user.id, 'roomEdit', set); if (over) return status(429, over)
@@ -172,6 +186,9 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
       return { code: 200 as const, room, people: people.map((p) => p.id) }
     })
     if (out.code !== 200) return status(out.code, { error: out.error })
+    if (out.room.mode === 'online') {
+      try { await livekit.closeRoom(roomName(out.room.id)) } catch (e) { console.error('room cancel: closing the call failed:', e instanceof Error ? e.message : 'unknown error') }
+    }
     for (const id of out.people) bus.publish(topics.user(id), { type: 'room.cancelled', roomId: out.room.id, title: out.room.title })
     bus.publish(topics.campus(user.university), { type: 'room.changed', roomId: out.room.id, intent: out.room.intent })
     return { ok: true }
