@@ -2,10 +2,12 @@
 //   bun src/admin/cli.ts invite <email> [--reset]   prints a one-time setup link (valid 24h)
 //   bun src/admin/cli.ts disable <email>            locks the account and ends its sessions
 //   bun src/admin/cli.ts list
+//   bun src/admin/cli.ts premium <email> <days|off>  grants premium for N days from now, or clears it
 import { eq } from 'drizzle-orm'
 import { adminSessions, adminUsers } from '@moc/db'
 import { db } from '../context'
 import { env } from '../env'
+import { setPremium } from '../premium'
 import { randomToken, sha256 } from './crypto'
 
 const [cmd, rawEmail, flag] = process.argv.slice(2)
@@ -37,7 +39,14 @@ if (cmd === 'invite') {
 } else if (cmd === 'list') {
   const rows = await db.select().from(adminUsers)
   for (const a of rows) console.log(`${a.email}  ${a.disabledAt ? 'DISABLED' : a.totpEnabledAt ? 'active' : 'invited'}  last login: ${a.lastLoginAt?.toISOString() ?? 'never'}  allowlisted: ${env.adminEmails.includes(a.email)}`)
+} else if (cmd === 'premium') {
+  const days = flag === 'off' ? null : Number(flag)
+  if (!email || (days !== null && (!Number.isFinite(days) || days <= 0))) fail('usage: premium <email> <days|off>')
+  try {
+    const until = await setPremium(email!, days)
+    console.log(until ? `${email} is premium until ${until.toISOString()}` : `premium cleared for ${email}`)
+  } catch (e) { fail((e as Error).message) }
 } else {
-  fail('commands: invite <email> [--reset] | disable <email> | list')
+  fail('commands: invite <email> [--reset] | disable <email> | list | premium <email> <days|off>')
 }
 process.exit(0)

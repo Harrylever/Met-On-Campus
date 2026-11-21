@@ -6,6 +6,8 @@ import {
 
 export const intentEnum = pgEnum('intent', ['study', 'friends', 'romance'])
 export const roomIntentEnum = pgEnum('room_intent', ['study', 'friends'])
+// physical = meet at a campus spot; online = a voice room (premium hosts only).
+export const roomModeEnum = pgEnum('room_mode', ['physical', 'online'])
 export const requestStatusEnum = pgEnum('request_status', ['pending', 'accepted', 'declined'])
 export const messageKindEnum = pgEnum('message_kind', ['text', 'meetup'])
 export const meetupStatusEnum = pgEnum('meetup_status', ['pending', 'confirmed', 'declined'])
@@ -31,6 +33,7 @@ export const users = pgTable('users', {
   level: integer('level').notNull(), // 100..500
   verifiedAt: timestamp('verified_at', { withTimezone: true }),
   gender: text('gender').$type<'male' | 'female'>(), // optional: 'male' | 'female' | null (not set). Shown as an icon on Discover cards unless a mode hides it.
+  premiumUntil: timestamp('premium_until', { withTimezone: true }), // premium while this is in the future; null = never premium
   status: userStatusEnum('status').notNull().default('active'),
   suspendedAt: timestamp('suspended_at', { withTimezone: true }),
   suspendedReason: text('suspended_reason'),
@@ -121,6 +124,7 @@ export const messages = pgTable('messages', {
 export const rooms = pgTable('rooms', {
   id: id(),
   intent: roomIntentEnum('intent').notNull(),
+  mode: roomModeEnum('mode').notNull().default('physical'),
   hostId: uuid('host_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   university: text('university').notNull(),
   tag: text('tag').notNull(),
