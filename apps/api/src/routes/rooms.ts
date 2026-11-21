@@ -1,13 +1,13 @@
 import { Elysia, t } from 'elysia'
 import { and, eq, gt, inArray, isNull, ne, sql } from 'drizzle-orm'
-import { roomMembers, rooms, users } from '@moc/db'
+import { blocks, roomMembers, rooms, users } from '@moc/db'
 import { authed, publicSelf } from '../auth'
 import { limited } from '../ratelimit'
 import { bus, db, topics } from '../context'
 import { blockedWith, isBlockedBetween } from '../blocks'
 import { onRoomMemberApproved } from '../rewards/events'
 import { isPremium } from '../premium'
-import { livekit } from '../livekit'
+import { livekit, roomName } from '../livekit'
 
 const ONLINE_MAX_MS = 4 * 3600_000
 
@@ -67,6 +67,35 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
     bus.publish(topics.user(room.hostId), { type: 'room.request', roomId: room.id, from: publicSelf(user) })
     return { status: 'pending' }
   })
+  // Join the live call of an online room. Order matters and every refusal happens before a token exists: this endpoint is the only door into the call.
+  .post('/:id/join', async ({ user, params, body, status, set }) => {
+    const over = await limited(user.id, 'roomJoin', set); if (over) return status(429, over)
+    const [room] = await db.select().from(rooms).where(and(eq(rooms.id, params.id), eq(rooms.university, user.university), eq(rooms.mode, 'online'))).limit(1)
+    if (!room || (await isBlockedBetween(user.id, room.hostId))) return status(404, { error: 'not_found' })
+    if (room.cancelledAt) return status(409, { error: 'cancelled' })
+    const [m] = await db.select().from(roomMembers).where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, user.id), eq(roomMembers.status, 'approved'))).limit(1)
+    if (!m) return status(403, { error: 'not_a_member' })
+    const now = new Date()
+    if (now < room.startsAt) return status(409, { error: 'not_live_yet' })
+    if (now >= room.endsAt) return status(409, { error: 'ended' })
+    if (!livekit.configured()) return status(503, { error: 'online_unavailable' })
+    const name = roomName(room.id)
+    try {
+      const present = await livekit.participants(name)
+      if (!body?.acknowledgeBlocked && present.length) {
+        const mine = await db.select({ id: blocks.blockedId }).from(blocks).where(and(eq(blocks.blockerId, user.id), inArray(blocks.blockedId, present.map((p) => p.identity))))
+        const ids = new Set(mine.map((b) => b.id))
+        const people = present.filter((p) => ids.has(p.identity)).map((p) => ({ name: p.name }))
+        if (people.length) return status(409, { error: 'blocked_present', people })
+      }
+      await livekit.ensureRoom(name, room.capacity)
+      const token = await livekit.issueToken({ room: name, identity: user.id, name: user.name, expiresAt: room.endsAt })
+      return { url: livekit.url(), token }
+    } catch (e) {
+      console.error('room join: voice provider failed:', e instanceof Error ? e.message : 'unknown error')
+      return status(502, { error: 'voice_unavailable' })
+    }
+  }, { params: t.Object({ id: t.String({ format: 'uuid' }) }), body: t.Optional(t.Object({ acknowledgeBlocked: t.Optional(t.Boolean()) })) })
   .delete('/:id/request', async ({ user, params }) => {
     await db.delete(roomMembers).where(and(eq(roomMembers.roomId, params.id), eq(roomMembers.userId, user.id), eq(roomMembers.status, 'pending')))
     return { ok: true }
