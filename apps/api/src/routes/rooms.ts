@@ -135,9 +135,16 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
     if (params.userId === user.id) return status(422, { error: 'cannot_remove_host' })
     const [m] = await db.update(roomMembers).set({ status: 'declined', decisionSeenAt: null })
       .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, params.userId), eq(roomMembers.status, 'approved'))).returning()
-    if (!m) return status(404, { error: 'not_found' })
-    try { await livekit.removeParticipant(roomName(room.id), params.userId) } catch (e) { console.error('room remove: disconnecting failed:', e instanceof Error ? e.message : 'unknown error') }
-    bus.publish(topics.user(params.userId), { type: 'room.decision', roomId: room.id, decision: 'declined' })
+    if (!m) {
+      // Already declined: this is a retry of a disconnect that failed. Only the disconnect is attempted again.
+      const [prev] = await db.select().from(roomMembers).where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, params.userId), eq(roomMembers.status, 'declined'))).limit(1)
+      if (!prev) return status(404, { error: 'not_found' })
+    }
+    if (m) bus.publish(topics.user(params.userId), { type: 'room.decision', roomId: room.id, decision: 'declined' })
+    try { await livekit.removeParticipant(roomName(room.id), params.userId) } catch (e) {
+      console.error('room remove: disconnecting failed:', e instanceof Error ? e.message : 'unknown error')
+      return status(502, { error: 'voice_unavailable' })
+    }
     return { ok: true }
   }, { params: t.Object({ id: t.String({ format: 'uuid' }), userId: t.String({ format: 'uuid' }) }) })
 

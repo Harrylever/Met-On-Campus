@@ -76,6 +76,32 @@ describe('removing a member', () => {
     expect((await call(ann, 'POST', `/rooms/${room.id}/join`)).status).toBe(403)
   })
 
+  test('a failed disconnect answers 502 voice_unavailable and the member is still declined and cannot join', async () => {
+    const host = await makeUser('Host', { premium: true }), ann = await makeUser('Ann')
+    const room = await makeRoom(host); await member(room, ann)
+    fake.failNext()
+    const r = await remove(host, room, ann)
+    expect(r.status).toBe(502); expect(r.json.error).toBe('voice_unavailable')
+    expect((await statusOf(room, ann))!.status).toBe('declined')
+    expect((await call(ann, 'POST', `/rooms/${room.id}/join`)).status).toBe(403)
+  })
+
+  test('retrying after a failed disconnect succeeds, disconnects them, and sends no second room.decision', async () => {
+    const host = await makeUser('Host', { premium: true }), ann = await makeUser('Ann')
+    const room = await makeRoom(host); await member(room, ann)
+    const seen: { topic: string; payload: any }[] = []
+    bus.attach((topic, payload) => seen.push({ topic, payload }))
+    fake.failNext()
+    expect((await remove(host, room, ann)).status).toBe(502)
+    await db.update(roomMembers).set({ decisionSeenAt: new Date() }).where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, ann.id)))
+    const before = await statusOf(room, ann)
+    expect((await remove(host, room, ann)).status).toBe(200)
+    expect(fake.removed).toEqual([{ room: roomName(room.id), identity: ann.id }])
+    const after = await statusOf(room, ann)
+    expect(after!.status).toBe('declined'); expect(after!.decisionSeenAt).toEqual(before!.decisionSeenAt)
+    expect(seen.filter((s) => s.payload.type === 'room.decision')).toHaveLength(1)
+  })
+
   test('the host cannot remove themselves (422)', async () => {
     const host = await makeUser('Host', { premium: true }); const room = await makeRoom(host)
     expect((await remove(host, room, host)).status).toBe(422)
