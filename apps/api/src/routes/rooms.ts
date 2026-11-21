@@ -9,8 +9,8 @@ import { onRoomMemberApproved } from '../rewards/events'
 import { isPremium } from '../premium'
 import { livekit, roomName } from '../livekit'
 
-/** How long an online call can run. Anyone can host one for up to 20 minutes; premium hosts can run up to 4 hours. */
-const ONLINE_FREE_MAX_MS = 20 * 60_000
+/** How long an online call can run. Anyone can host one for up to 5 minutes; premium hosts can run up to 4 hours. */
+const ONLINE_FREE_MAX_MS = 5 * 60_000
 const ONLINE_PREMIUM_MAX_MS = 4 * 3600_000
 const onlineMaxMs = (host: { premiumUntil: Date | null }) => (isPremium(host) ? ONLINE_PREMIUM_MAX_MS : ONLINE_FREE_MAX_MS)
 const tooLongForOnline = (host: { premiumUntil: Date | null }, lengthMs: number) =>

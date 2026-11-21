@@ -34,9 +34,9 @@ export const problemText = (e: unknown) => rateLimitedText(e, 'rooms') ?? PROBLE
 
 const KINDS: { id: Intent; label: string }[] = [{ id: 'study', label: 'Study Rooms' }, { id: 'friends', label: 'Hangouts' }]
 
-// Anyone can host an online call for up to 20 minutes; premium hosts can run up to 4 hours (the server enforces the same limits).
-const onlineMaxMinutes = (premium: boolean) => (premium ? 240 : 20)
-const onlineMaxText = (premium: boolean) => (premium ? '4 hours' : '20 minutes')
+// Anyone can host an online call for up to 5 minutes; premium hosts can run up to 4 hours (the server enforces the same limits).
+const onlineMaxMinutes = (premium: boolean) => (premium ? 240 : 5)
+const onlineMaxText = (premium: boolean) => (premium ? '4 hours' : '5 minutes')
 // The call screen brings the voice library with it, so it loads only when someone joins a call.
 const VoiceRoom = lazy(() => import('~/components/VoiceRoom').then((m) => ({ default: m.VoiceRoom })))
 

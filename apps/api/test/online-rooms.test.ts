@@ -20,24 +20,24 @@ describe('creating online rooms', () => {
     expect(r.json.room.place).toBe('Online')
   })
 
-  test('a non-premium host can create an online room of exactly 20 minutes', async () => {
+  test('a non-premium host can create an online room of exactly 5 minutes', async () => {
     const host = await makeUser('Host')
-    const r = await call(host, 'POST', '/rooms', online({ endsAt: inMin(20) }))
+    const r = await call(host, 'POST', '/rooms', online({ endsAt: inMin(5) }))
     expect(r.status).toBe(200)
     expect(r.json.room.mode).toBe('online')
     expect(r.json.room.place).toBe('Online')
   })
 
-  test('a non-premium host is refused an online room longer than 20 minutes with 422 online_too_long and maxMinutes 20', async () => {
+  test('a non-premium host is refused an online room longer than 5 minutes with 422 online_too_long and maxMinutes 5', async () => {
     const host = await makeUser('Host')
-    const r = await call(host, 'POST', '/rooms', online({ endsAt: inMin(21) }))
+    const r = await call(host, 'POST', '/rooms', online({ endsAt: inMin(6) }))
     expect(r.status).toBe(422)
     expect(r.json.error).toBe('online_too_long')
-    expect(r.json.maxMinutes).toBe(20)
+    expect(r.json.maxMinutes).toBe(5)
     expect(await roomCount()).toBe(0)
   })
 
-  test('a lapsed-premium host gets the free 20 minute cap when creating', async () => {
+  test('a lapsed-premium host gets the free 5 minute cap when creating', async () => {
     const host = await makeUser('Host', { premium: true })
     await db.update(users).set({ premiumUntil: new Date(Date.now() - 1000) }).where(eq(users.id, host.id))
     const r = await call(host, 'POST', '/rooms', online({ endsAt: at(2) }))
@@ -108,20 +108,20 @@ describe('editing online rooms', () => {
     expect(r.json.room.mode).toBe('online')
   })
 
-  test('once premium has lapsed, changing the times is held to 20 minutes: longer is refused, shorter is allowed', async () => {
+  test('once premium has lapsed, changing the times is held to 5 minutes: longer is refused, shorter is allowed', async () => {
     const host = await makeUser('Host', { premium: true })
     const id = (await call(host, 'POST', '/rooms', online({ endsAt: at(3) }))).json.room.id as string
     await db.update(users).set({ premiumUntil: new Date(Date.now() - 1000) }).where(eq(users.id, host.id))
     const longer = await call(host, 'PATCH', `/rooms/${id}`, { endsAt: at(4) })
-    expect(longer.status).toBe(422); expect(longer.json.error).toBe('online_too_long'); expect(longer.json.maxMinutes).toBe(20)
-    const shorter = await call(host, 'PATCH', `/rooms/${id}`, { endsAt: inMin(15) })
+    expect(longer.status).toBe(422); expect(longer.json.error).toBe('online_too_long'); expect(longer.json.maxMinutes).toBe(5)
+    const shorter = await call(host, 'PATCH', `/rooms/${id}`, { endsAt: inMin(3) })
     expect(shorter.status).toBe(200)
   })
 
-  test('a non-premium host cannot stretch their 20 minute online room past 20 minutes', async () => {
+  test('a non-premium host cannot stretch their 5 minute online room past 5 minutes', async () => {
     const host = await makeUser('Host')
-    const id = (await call(host, 'POST', '/rooms', online({ endsAt: inMin(20) }))).json.room.id as string
+    const id = (await call(host, 'POST', '/rooms', online({ endsAt: inMin(5) }))).json.room.id as string
     const r = await call(host, 'PATCH', `/rooms/${id}`, { endsAt: inMin(45) })
-    expect(r.status).toBe(422); expect(r.json.error).toBe('online_too_long'); expect(r.json.maxMinutes).toBe(20)
+    expect(r.status).toBe(422); expect(r.json.error).toBe('online_too_long'); expect(r.json.maxMinutes).toBe(5)
   })
 })

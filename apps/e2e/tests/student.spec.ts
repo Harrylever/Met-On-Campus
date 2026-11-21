@@ -125,7 +125,7 @@ test('a premium host creates an online room and sees the Online tag', async ({ b
   await expect(card.getByText('Online', { exact: true })).toBeVisible()
 })
 
-test('a non-premium host can create an online room, limited to 20 minutes', async ({ browser, playwright }) => {
+test('a non-premium host can create an online room, limited to 5 minutes', async ({ browser, playwright }) => {
   const host = await makeStudent(playwright, 'Freehost')
   const page = await (await browserAs(browser, host)).newPage()
   await page.goto('/rooms')
@@ -135,9 +135,9 @@ test('a non-premium host can create an online room, limited to 20 minutes', asyn
   await page.getByRole('button', { name: 'Online', exact: true }).click()
   await expect(page.getByText('Online rooms are a premium feature.')).toHaveCount(0)
   const length = page.getByLabel('Length')
-  await expect(length).toHaveValue('20')
-  await expect(length.locator('option', { hasText: '20 min' })).toHaveCount(1)
-  await expect(length.locator('option', { hasText: '30 min' })).toHaveCount(0)
+  await expect(length).toHaveValue('5')
+  await expect(length.locator('option', { hasText: '5 min' })).toHaveCount(1)
+  await expect(length.locator('option', { hasText: '10 min' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Create Room' }).click()
   const card = page.getByRole('article').filter({ hasText: 'Free voice revision' })
   await expect(card.getByText('Online', { exact: true })).toBeVisible()
