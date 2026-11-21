@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNull, lte } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNotNull, isNull, lte, or } from 'drizzle-orm'
 import { roomMembers, rooms, users } from '@moc/db'
 import { db } from './context'
 import { livekit, roomName } from './livekit'
@@ -6,10 +6,16 @@ import { livekit, roomName } from './livekit'
 const WINDOW_MS = 15 * 60_000
 const msg = (e: unknown) => (e instanceof Error ? e.message : 'unknown error')
 
-/** Closes the call of every online room that ended in the last 15 minutes (closing is idempotent). Returns how many it closed. */
+/**
+ * Closes the call of every online room that ended in the last 15 minutes, and of every cancelled online room until 15
+ * minutes after its original end (so a close that failed at cancel time is retried, and an old token cannot reopen it).
+ * Closing is idempotent. Returns how many it closed.
+ */
 export async function sweepEndedRooms(now = new Date()): Promise<number> {
+  const since = new Date(+now - WINDOW_MS)
   const ended = await db.select({ id: rooms.id }).from(rooms).where(and(
-    eq(rooms.mode, 'online'), isNull(rooms.cancelledAt), lte(rooms.endsAt, now), gt(rooms.endsAt, new Date(+now - WINDOW_MS)),
+    eq(rooms.mode, 'online'), gt(rooms.endsAt, since),
+    or(isNotNull(rooms.cancelledAt), lte(rooms.endsAt, now)),
   ))
   let closed = 0
   for (const r of ended) {
@@ -46,12 +52,24 @@ export async function enforceLiveMembership(now = new Date()): Promise<number> {
   return removed
 }
 
-export function startRoomSweep(): void {
-  setInterval(() => {
+let running = false
+
+/** One sweep pass. Skipped when LiveKit is not configured, or while the previous pass is still running. Never throws. */
+export async function runSweepPass(now = new Date()): Promise<'ran' | 'skipped'> {
+  if (running || !livekit.configured()) return 'skipped'
+  running = true
+  try {
     const log = (e: unknown) => console.error('room sweep failed:', msg(e))
-    sweepEndedRooms().catch(log)
-    enforceLiveMembership().catch(log)
-  }, 60_000)
+    await Promise.all([sweepEndedRooms(now).catch(log), enforceLiveMembership(now).catch(log)])
+    return 'ran'
+  } finally {
+    running = false
+  }
+}
+
+/** Started once, from server.ts. */
+export function startRoomSweep(): void {
+  setInterval(() => { void runSweepPass() }, 60_000)
 }
 
 /** Takes a student out of every online call that is live right now and where they are approved. Never throws. */

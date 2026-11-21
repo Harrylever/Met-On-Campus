@@ -3,7 +3,7 @@ import { roomMembers, rooms, users } from '@moc/db'
 import { and, eq } from 'drizzle-orm'
 import { bus, db } from '../src/context'
 import { setLiveKit, roomName } from '../src/livekit'
-import { enforceLiveMembership, sweepEndedRooms } from '../src/roomsweep'
+import { enforceLiveMembership, runSweepPass, sweepEndedRooms } from '../src/roomsweep'
 import { adminCall, adminLogin, call, fakeLiveKit, makeAdmin, makeUser, resetAll, type TestUser } from './helpers'
 
 let fake: ReturnType<typeof fakeLiveKit>
@@ -32,7 +32,7 @@ describe('the sweep', () => {
     const justEnded = await makeRoom(host, { endsAt: new Date(Date.now() - 5 * MIN) })
     await makeRoom(host, { endsAt: new Date(Date.now() + H) })
     await makeRoom(host, { endsAt: new Date(Date.now() - 2 * H) })
-    await makeRoom(host, { endsAt: new Date(Date.now() - 5 * MIN), cancelledAt: new Date() })
+    await makeRoom(host, { endsAt: new Date(Date.now() - 2 * H), cancelledAt: new Date(Date.now() - 3 * H) })
     await makeRoom(host, { mode: 'physical', place: 'Library', endsAt: new Date(Date.now() - 5 * MIN) })
     expect(await sweepEndedRooms()).toBe(1)
     expect(fake.closed).toEqual([roomName(justEnded.id)])
@@ -45,6 +45,87 @@ describe('the sweep', () => {
     fake.failNext()
     expect(await sweepEndedRooms()).toBe(1)
     expect(fake.closed).toHaveLength(1)
+  })
+})
+
+describe('the sweep and cancelled rooms', () => {
+  test('a cancelled online room whose end is still in the future is closed by the sweep', async () => {
+    const host = await makeUser('Host', { premium: true })
+    const c = await makeRoom(host, { endsAt: new Date(Date.now() + H), cancelledAt: new Date() })
+    expect(await sweepEndedRooms()).toBe(1)
+    expect(fake.closed).toEqual([roomName(c.id)])
+    // and again on the next minute, while the room would still have been running
+    expect(await sweepEndedRooms(new Date(Date.now() + MIN))).toBe(1)
+  })
+
+  test('a cancelled online room that ended recently is still closed, until 15 minutes after its original end', async () => {
+    const host = await makeUser('Host', { premium: true })
+    const c = await makeRoom(host, { endsAt: new Date(Date.now() - 5 * MIN), cancelledAt: new Date(Date.now() - H) })
+    expect(await sweepEndedRooms()).toBe(1)
+    expect(fake.closed).toEqual([roomName(c.id)])
+    fake.closed.length = 0
+    expect(await sweepEndedRooms(new Date(Date.now() + 11 * MIN))).toBe(0)
+    expect(fake.closed).toHaveLength(0)
+  })
+
+  test('a cancelled online room that ended long ago is not touched', async () => {
+    const host = await makeUser('Host', { premium: true })
+    await makeRoom(host, { endsAt: new Date(Date.now() - 2 * H), cancelledAt: new Date(Date.now() - 3 * H) })
+    await makeRoom(host, { mode: 'physical', place: 'Library', endsAt: new Date(Date.now() + H), cancelledAt: new Date() })
+    expect(await sweepEndedRooms()).toBe(0)
+    expect(fake.closed).toHaveLength(0)
+  })
+
+  test('a close that failed at cancel time is retried by the next sweep', async () => {
+    const host = await makeUser('Host', { premium: true })
+    const room = await makeRoom(host)
+    fake.failNext()
+    expect((await call(host, 'DELETE', `/rooms/${room.id}`)).status).toBe(200)
+    expect(fake.closed).toHaveLength(0)
+    expect(await sweepEndedRooms()).toBe(1)
+    expect(fake.closed).toEqual([roomName(room.id)])
+  })
+})
+
+describe('the sweep pass', () => {
+  test('the sweep skips entirely when LiveKit is not configured', async () => {
+    const host = await makeUser('Host', { premium: true }), out = await makeUser('Out')
+    await makeRoom(host, { endsAt: new Date(Date.now() - 5 * MIN) })
+    const live = await makeRoom(host)
+    fake.setParticipants(roomName(live.id), [{ identity: out.id, name: 'Out' }])
+    fake.setConfigured(false)
+    const errors: unknown[] = []
+    const orig = console.error; console.error = (...a: unknown[]) => { errors.push(a) }
+    try { expect(await runSweepPass()).toBe('skipped') } finally { console.error = orig }
+    expect(fake.closed).toHaveLength(0); expect(fake.removed).toHaveLength(0)
+    expect(errors).toHaveLength(0)
+  })
+
+  test('a pass closes ended calls and enforces membership', async () => {
+    const host = await makeUser('Host', { premium: true }), out = await makeUser('Out')
+    const ended = await makeRoom(host, { endsAt: new Date(Date.now() - 5 * MIN) })
+    const live = await makeRoom(host)
+    fake.setParticipants(roomName(live.id), [{ identity: out.id, name: 'Out' }])
+    expect(await runSweepPass()).toBe('ran')
+    expect(fake.closed).toEqual([roomName(ended.id)])
+    expect(fake.removed).toEqual([{ room: roomName(live.id), identity: out.id }])
+  })
+
+  test('an overlapping tick is skipped while a pass is still running', async () => {
+    const host = await makeUser('Host', { premium: true })
+    await makeRoom(host, { endsAt: new Date(Date.now() - 5 * MIN) })
+    let release!: () => void
+    const gate = new Promise<void>((r) => { release = r })
+    let closes = 0
+    setLiveKit({ ...fake, async closeRoom(room: string) { closes++; await gate; await fake.closeRoom(room) } })
+    const first = runSweepPass()
+    while (closes === 0) await new Promise((r) => setTimeout(r, 5))
+    expect(await runSweepPass()).toBe('skipped')
+    release()
+    expect(await first).toBe('ran')
+    expect(closes).toBe(1)
+    expect(await runSweepPass()).toBe('ran')
+    expect(closes).toBe(2)
   })
 })
 
