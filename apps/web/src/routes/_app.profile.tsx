@@ -44,7 +44,7 @@ function Profile() {
   const [deleted, setDeleted] = useState(false) // once the account is gone there is nothing to save
   // Leaving with unsaved edits asks first (in-app navigation and closing the tab).
   useBlocker({ shouldBlockFn: () => !window.confirm('You have unsaved changes. Leave without saving?'), enableBeforeUnload: () => anyDirty && !deleted, disabled: !anyDirty || deleted })
-  const saveBasics = useMutation({ mutationFn: () => unwrap(api.me.patch({ name, department, level, gender: gender || null })), onSuccess: () => { router.invalidate(); qc.invalidateQueries({ queryKey: ['discover'] }) } })
+  const saveBasics = useMutation({ mutationFn: () => unwrap(api.me.patch({ name, department, level, gender: gender || undefined })), onSuccess: () => { router.invalidate(); qc.invalidateQueries({ queryKey: ['discover'] }) } })
 
   return (
     <div data-intent={mode} className="flex flex-col gap-5">
@@ -67,11 +67,11 @@ function Profile() {
         </div>
         <label className="block text-sm font-semibold">Gender (optional)
           <select className="input mt-2 h-11 font-normal" value={gender} onChange={(e) => setGender(e.target.value as Gender | '')} aria-describedby="profile-gender-hint">
-            <option value="">Prefer not to say</option>
+            {!me.user.gender && <option value="" disabled>Choose</option>}
             <option value="male">Male</option>
             <option value="female">Female</option>
           </select>
-          <span id="profile-gender-hint" className="mt-1.5 block text-xs font-normal text-ink-2">Shown as a small icon on your cards. You can hide it in each mode below.</span></label>
+          <span id="profile-gender-hint" className="mt-1.5 block text-xs font-normal text-ink-2">Shown as a small icon on your cards (you can hide it in each mode below). In Romance you only see, and are only seen by, people of the opposite gender. If you leave this blank, Romance only shows you others who left it blank.</span></label>
         <DepartmentRequest />
         <button className="btn" disabled={saveBasics.isPending || (name !== me.user.name && !validPersonName(name))} onClick={() => saveBasics.mutate()}>{saveBasics.isSuccess && !basicsDirty ? 'Saved' : 'Save details'}</button>
         {basicsDirty && <p className="text-sm text-ink-2" role="status">You have unsaved changes to your details.</p>}

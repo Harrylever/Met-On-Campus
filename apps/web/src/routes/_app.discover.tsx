@@ -90,6 +90,9 @@ function Discover() {
 
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between"><span className="label text-ink">{feed.isLoading ? <Skeleton className="h-3.5 w-20" /> : <>{total} {total === 1 ? 'student' : 'students'}</>}</span><span className="label">Online first</span></div>
+        {intent === 'romance' && !me.user.gender && (
+          <p role="note" className="card text-sm text-ink-2">You have not set your gender, so Romance only shows you others who have not set theirs. <Link to="/profile" className="text-ink underline underline-offset-4">Set it in your profile</Link> to meet more people.</p>
+        )}
         {feed.isError && <p role="alert" className="card text-danger">Could not load students. Try again in a moment.</p>}
         {connect.isError && <p role="alert" className="card text-danger">{rateLimitedText(connect.error, 'invites') ?? 'Could not send the invite. Try again.'}</p>}
         {!feed.isLoading && cards.length === 0 && (

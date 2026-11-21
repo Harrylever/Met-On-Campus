@@ -41,6 +41,12 @@ export const meRoutes = new Elysia({ prefix: "/me" })
       const over = await limited(user.id, "profile", set)
       if (over) return status(429, over)
       const changes = { ...body }
+      // Gender can be set or switched, never cleared (there is no "prefer not to say" any more). A null from someone who
+      // never set one is simply ignored, so an older app that always sends the field can still save their other details.
+      if (changes.gender === null) {
+        if (user.gender) return status(422, { error: "gender_cannot_be_cleared" })
+        delete changes.gender
+      }
       // The display name is what every other student sees, so it must be a real name or nickname (no digits: matric
       // numbers). Keeping the name you already have is always allowed, so an old one never blocks saving other details.
       if (changes.name !== undefined) {
