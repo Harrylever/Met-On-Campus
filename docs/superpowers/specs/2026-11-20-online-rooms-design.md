@@ -1,17 +1,19 @@
 # Online rooms (voice + text) design
 
+> **Update 2026-11-21 (owner's decision): online rooms are open to everyone.** Any student can host an online room, capped at **20 minutes**. **Premium hosts** keep long calls, up to **4 hours**. Wherever this document says only premium hosts can create online rooms (or `403 premium_required`), read it as: the length cap is 20 minutes for everyone and 4 hours for premium. A too-long request answers `422 { error: 'online_too_long', maxMinutes }` (20 or 240), and `premium_required` is no longer returned. Premium is read from the host's *current* status, and only when creating a room or changing its times. Renaming a room or changing its spots never re-checks it, so a host whose premium lapsed keeps, and can still edit, a long room they already made.
+
 Status: draft, awaiting builder check and approval. Nothing has been built.
 Scope: project 1 of 2. Paying with Paystack is a separate later project (see Non-goals).
 
 ## Intent and why
-Rooms and hangouts today are scheduled physical meetups at a campus spot. Students who can't be there in person, or who just want to study together from their hostel, have no equivalent. Add an **online** kind of room: a live voice huddle where people talk in real time and can also type. It is a premium feature for hosts ("host pays"): only a premium host can create an online room; anyone the host approves can join for free.
+Rooms and hangouts today are scheduled physical meetups at a campus spot. Students who can't be there in person, or who just want to study together from their hostel, have no equivalent. Add an **online** kind of room: a live voice huddle where people talk in real time and can also type. Anyone can host a short (20 minute) online room; premium hosts can run long ones ("host pays" for length); anyone the host approves can join for free.
 
 ## Goals
 - A room is either **physical** (exactly today's behaviour) or **online**. Study and Hangout both support both.
 - An online room has no place. It keeps title, tag, intent, start and end time, capacity, and the existing request/approve flow.
 - Approved members (and the host) can join the voice room **only while it is live** (between its start and end time). Nobody can join before it starts or after it ends.
 - Inside: voice with a mute control, a live participant list, and a text chat among the people currently in the room.
-- Only premium hosts can create online rooms. Premium starts as a manual flag; paying is out of scope here.
+- Any student can create an online room of up to 20 minutes; only premium hosts can go longer (up to 4 hours). Premium starts as a manual flag; paying is out of scope here.
 - Blocking, suspension and campus boundaries keep working exactly as they do for physical rooms.
 
 ## Non-goals / anti-goals
@@ -37,11 +39,11 @@ Rooms and hangouts today are scheduled physical meetups at a campus spot. Studen
 - Peer-to-peer WebRTC with no media server: rejected (breaks above ~4 people and on some campus networks).
 
 ## Design (decided by the owner unless marked as my call)
-**Owner's decisions:** online and physical modes for both Study rooms and Hangouts; hosted SFU (LiveKit Cloud); voice plus text in the room; host pays (only premium hosts create online rooms, guests free); join only while live; premium is a manual flag first, Paystack later.
+**Owner's decisions:** online and physical modes for both Study rooms and Hangouts; hosted SFU (LiveKit Cloud); voice plus text in the room; host pays for length (everyone hosts up to 20 minutes, premium hosts up to 4 hours, guests free); join only while live; premium is a manual flag first, Paystack later.
 
 **My calls (change any of them):**
 - **Data:** `rooms.mode` enum `'physical' | 'online'`, default `'physical'` (existing rows unchanged); online rooms store `place = 'Online'`. `users.premium_until` nullable timestamptz; premium means `premium_until > now()`. Staff set it from the platform/`bun run admin` (exact tool is the builder's call).
-- **Creating:** `POST /rooms` accepts `mode`. Online requires premium (`403 premium_required`) and LiveKit configured (`503 online_unavailable` if the three env vars are missing, like photos). An online room's length is capped at 4 hours. A host who loses premium after creating keeps rooms they already made.
+- **Creating:** `POST /rooms` accepts `mode`. Online requires LiveKit configured (`503 online_unavailable` if the three env vars are missing, like photos). An online room's length is capped at 20 minutes, or 4 hours for a premium host. A host who loses premium after creating keeps rooms they already made.
 - **Joining:** new `POST /rooms/:id/join` returns `{ url, token }` for an online room only if the caller is the host or `approved`, the room is not cancelled, `startsAt <= now < endsAt`, the caller is active (not suspended), and is not blocked with the host. Otherwise 404/403/409 with a clear error (`not_live_yet`, `ended`, `not_a_member`). The token: identity = user id, display name = first name, audio publish and data publish allowed, no video, expiry = the room's end time. Tokens are not reusable beyond that; a rejoin asks for a new one. Rate limit `roomJoin` (30 per hour per student).
 - **Room names:** LiveKit room name `room:<roomId>`. Cancelling a room (existing `DELETE /rooms/:id`) also closes the LiveKit room so everyone is disconnected.
 - **Host control:** the host can remove someone from a live call (disconnect, and mark that member declined so they cannot rejoin). No other moderation in v1; voice and chat are never recorded, so staff cannot review what was said.
@@ -56,7 +58,7 @@ Rooms and hangouts today are scheduled physical meetups at a campus spot. Studen
 - **Editing an online room:** `mode` can't change after creation; `place` stays `'Online'` and can't be edited; the 4-hour cap applies to edits too; `endsAt` may be moved earlier or later mid-call (the sweep always uses the current value; a rejoin gets a token for the current end); capacity edits only change the approval limit.
 - **Removing someone from a call:** `POST /rooms/:id/members/:userId/remove`, host only, for approved non-host members. It sets their status to `declined` (so it frees capacity and they cannot rejoin; because requests use "do nothing on conflict" they also cannot re-request that room, which is intended), disconnects them in LiveKit, tells them with the existing `room.decision` event, and resets `decisionSeenAt`. A host cannot remove themselves.
 - **Refusals:** `404 not_found` for a missing room, another campus, a physical room, or a caller blocked with the host (no information leak); `409 cancelled`; `403 not_a_member`; `409 not_live_yet`; `409 ended`; `403 premium_required` and `503 online_unavailable` as above. A suspended caller is already refused by the existing sign-in check.
-- **Premium** is checked only when creating the room. Joins and rooms already made keep working if premium lapses.
+- **Premium** only raises the length cap. It is read when a room is created or its times change; joins and rooms already made keep working if premium lapses.
 - **Configuration:** env vars `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, no defaults. Tests and e2e use fake values and a substituted LiveKit wrapper, so the "Join voice" button renders there. If LiveKit is not configured, the button still shows and a join says online rooms are unavailable.
 - **Two tabs or devices:** the identity is the user id, so joining on a second device drops the first. One live connection per student is acceptable.
 

@@ -9,7 +9,12 @@ import { onRoomMemberApproved } from '../rewards/events'
 import { isPremium } from '../premium'
 import { livekit, roomName } from '../livekit'
 
-const ONLINE_MAX_MS = 4 * 3600_000
+/** How long an online call can run. Anyone can host one for up to 20 minutes; premium hosts can run up to 4 hours. */
+const ONLINE_FREE_MAX_MS = 20 * 60_000
+const ONLINE_PREMIUM_MAX_MS = 4 * 3600_000
+const onlineMaxMs = (host: { premiumUntil: Date | null }) => (isPremium(host) ? ONLINE_PREMIUM_MAX_MS : ONLINE_FREE_MAX_MS)
+const tooLongForOnline = (host: { premiumUntil: Date | null }, lengthMs: number) =>
+  lengthMs > onlineMaxMs(host) ? { error: 'online_too_long' as const, maxMinutes: onlineMaxMs(host) / 60_000 } : null
 /** The most spots a room can have. Also the call's LiveKit participant limit: approval decides who gets a token, and LiveKit only applies the limit when it first creates the room. */
 export const ROOM_CAPACITY_MAX = 50
 
@@ -48,9 +53,9 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
     if (!(endsAt > startsAt) || endsAt < new Date()) return status(422, { error: 'bad_time_range' })
     const mode = body.mode ?? 'physical'
     if (mode === 'online') {
-      if (!isPremium(user)) return status(403, { error: 'premium_required' })
       if (!livekit.configured()) return status(503, { error: 'online_unavailable' })
-      if (endsAt.getTime() - startsAt.getTime() > ONLINE_MAX_MS) return status(422, { error: 'online_too_long' })
+      const tooLong = tooLongForOnline(user, endsAt.getTime() - startsAt.getTime())
+      if (tooLong) return status(422, tooLong)
     } else if (!body.place?.trim()) return status(422, { error: 'place_required' })
     const place = mode === 'online' ? 'Online' : body.place!
     const room = await db.transaction(async (tx) => {
@@ -162,7 +167,10 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
       if (!(endsAt > startsAt) || endsAt < new Date()) return { code: 422 as const, error: 'bad_time_range' }
       if (room.mode === 'online') {
         if (body.place !== undefined) return { code: 422 as const, error: 'place_locked' }
-        if (endsAt.getTime() - startsAt.getTime() > ONLINE_MAX_MS) return { code: 422 as const, error: 'online_too_long' }
+        // Held to the host's current cap only when the times actually change, so a host whose premium lapsed can still rename a long room they already made.
+        const timesChanged = startsAt.getTime() !== room.startsAt.getTime() || endsAt.getTime() !== room.endsAt.getTime()
+        const tooLong = timesChanged ? tooLongForOnline(user, endsAt.getTime() - startsAt.getTime()) : null
+        if (tooLong) return { code: 422 as const, ...tooLong }
       }
       if (body.capacity !== undefined) {
         const [{ n } = { n: 0 }] = await tx.select({ n: sql<number>`count(*)::int` }).from(roomMembers).where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.status, 'approved')))
@@ -174,7 +182,7 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
       const people = await tx.select({ id: roomMembers.userId }).from(roomMembers).where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.status, 'approved'), ne(roomMembers.userId, user.id)))
       return { code: 200 as const, room: updated!, people: people.map((p) => p.id) }
     })
-    if (out.code !== 200) return status(out.code, { error: out.error })
+    if (out.code !== 200) return status(out.code, 'maxMinutes' in out ? { error: out.error, maxMinutes: out.maxMinutes } : { error: out.error })
     for (const id of out.people) bus.publish(topics.user(id), { type: 'room.updated', roomId: out.room.id, title: out.room.title })
     bus.publish(topics.campus(user.university), { type: 'room.changed', roomId: out.room.id, intent: out.room.intent })
     return { room: out.room }

@@ -20,9 +20,8 @@ const PROBLEMS: Record<string, string> = {
   host_only: 'Only the host can do that.',
   bad_time_range: 'The end must be after the start, and still in the future.',
   capacity_below_members: 'More people than that already have a place. Choose a higher number of spots.',
-  premium_required: 'Online rooms are a premium feature.',
   online_unavailable: 'Online rooms are not available right now. Try again later, or host in person.',
-  online_too_long: 'An online room can last up to 4 hours. Choose a shorter length.',
+  online_too_long: 'That is longer than an online room can last. Choose a shorter length.',
   place_required: 'Choose a public campus spot.',
   place_locked: 'An online room stays online, so it has no spot to change.',
   not_live_yet: 'This call has not started yet. Come back at the start time.',
@@ -35,7 +34,9 @@ export const problemText = (e: unknown) => rateLimitedText(e, 'rooms') ?? PROBLE
 
 const KINDS: { id: Intent; label: string }[] = [{ id: 'study', label: 'Study Rooms' }, { id: 'friends', label: 'Hangouts' }]
 
-const ONLINE_MAX_MINUTES = 240
+// Anyone can host an online call for up to 20 minutes; premium hosts can run up to 4 hours (the server enforces the same limits).
+const onlineMaxMinutes = (premium: boolean) => (premium ? 240 : 20)
+const onlineMaxText = (premium: boolean) => (premium ? '4 hours' : '20 minutes')
 // The call screen brings the voice library with it, so it loads only when someone joins a call.
 const VoiceRoom = lazy(() => import('~/components/VoiceRoom').then((m) => ({ default: m.VoiceRoom })))
 
@@ -192,11 +193,13 @@ type RoomRow = { id: string; mode: 'physical' | 'online'; tag: string; title: st
 /** One form for hosting a new room and for editing yours. Editing keeps people's places; spots cannot drop below who is already in. */
 function RoomForm({ intent, room, premium, onDone }: { intent: 'study' | 'friends'; room?: RoomRow; premium: boolean; onDone: () => void }) {
   const spots = useQuery({ queryKey: ['spots'], queryFn: () => unwrap(api.spots.get()), staleTime: Infinity })
-  const length0 = room ? Math.max(15, Math.round((+new Date(room.endsAt) - +new Date(room.startsAt)) / 60_000)) : 90
+  const length0 = room ? Math.max(5, Math.round((+new Date(room.endsAt) - +new Date(room.startsAt)) / 60_000)) : 90
   const [tag, setTag] = useState(room?.tag ?? ''); const [title, setTitle] = useState(room?.title ?? ''); const [place, setPlace] = useState(room?.place ?? '')
   const [online, setOnline] = useState(room?.mode === 'online') // a room's mode is fixed once it exists
   const [start, setStart] = useState(toLocalInput(room ? new Date(room.startsAt) : new Date())); const [mins, setMins] = useState(length0); const [capacity, setCapacity] = useState(room?.capacity ?? 5)
-  const lengths = [...new Set([30, 60, 90, 120, 180, 240, length0])].sort((a, b) => a - b).filter((m) => !online || m <= ONLINE_MAX_MINUTES || m === length0)
+  const onlineMax = onlineMaxMinutes(premium)
+  const lengths = [...new Set([...(online ? [5, 10, 15, 20] : []), 30, 60, 90, 120, 180, 240, ...(room ? [length0] : [])])]
+    .sort((a, b) => a - b).filter((m) => !online || m <= onlineMax || (!!room && m === length0))
   const placeOptions = [...new Set([...(room ? [room.place] : []), ...(spots.data?.spots ?? [])])] // keep your current spot even if staff retired it
   const save = useMutation({
     mutationFn: () => {
@@ -209,9 +212,9 @@ function RoomForm({ intent, room, premium, onDone }: { intent: 'study' | 'friend
     onSuccess: onDone,
   })
   const minSpots = Math.max(room?.taken ?? 0, 2)
-  const premiumBlocked = online && !room && !premium
-  const tooLong = online && mins > ONLINE_MAX_MINUTES
-  const ok = tag.trim() && title.trim() && (online ? !premiumBlocked && !tooLong : place) && capacity >= minSpots
+  // Keeping the length a room already has is always fine (a host whose premium lapsed can still rename a long room); the server agrees.
+  const tooLong = online && mins > onlineMax && !(room && mins === length0)
+  const ok = tag.trim() && title.trim() && (online ? !tooLong : place) && capacity >= minSpots
   return (
     <form className="card space-y-3" onSubmit={(e) => { e.preventDefault(); ok && save.mutate() }}>
       <span className="label">{room ? 'Edit this room' : `New ${intent === 'study' ? 'study room' : 'hangout'}`}</span>
@@ -226,20 +229,19 @@ function RoomForm({ intent, room, premium, onDone }: { intent: 'study' | 'friend
           <span className="text-sm font-semibold" aria-hidden>Where</span>
           <div className="flex gap-2">
             <button type="button" className="chip flex-1 justify-center" aria-pressed={!online} onClick={() => setOnline(false)}>In person</button>
-            <button type="button" className="chip flex-1 justify-center" aria-pressed={online} onClick={() => { setOnline(true); if (mins > ONLINE_MAX_MINUTES) setMins(ONLINE_MAX_MINUTES) }}>Online</button>
+            <button type="button" className="chip flex-1 justify-center" aria-pressed={online} onClick={() => { setOnline(true); if (mins > onlineMax) setMins(onlineMax) }}>Online</button>
           </div>
         </div>
       )}
       {online
-        ? <p className="text-xs text-ink-2">{room ? 'This is an online room: a voice call with a text box, for the host and the people with a place.' : 'A voice call with a text box, up to 4 hours. Only you and the people you approve can join, while it is on.'}</p>
+        ? <p className="text-xs text-ink-2">{room ? 'This is an online room: a voice call with a text box, for the host and the people with a place.' : `A voice call with a text box, up to ${onlineMaxText(premium)}. Only you and the people you approve can join, while it is on.${premium ? '' : ' Premium hosts can run calls up to 4 hours.'}`}</p>
         : <label className="block text-sm font-semibold">Public campus spot
           <select className="input mt-2 font-normal" value={place} onChange={(e) => setPlace(e.target.value)}><option value="">Choose a spot</option>{placeOptions.map((s) => <option key={s}>{s}</option>)}</select></label>}
-      {premiumBlocked && <p role="status" className="rounded-[10px] bg-subtle p-3 text-sm">Online rooms are a premium feature.</p>}
       <div className="grid grid-cols-2 gap-3">
         <label className="text-sm font-semibold">Starts<input className="input mt-2 font-normal" type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></label>
         <label className="text-sm font-semibold">Length<select className="input mt-2 font-normal" value={mins} onChange={(e) => setMins(+e.target.value)}>{lengths.map((m) => <option key={m} value={m}>{m} min</option>)}</select></label>
       </div>
-      {tooLong && <p className="text-sm text-warn-ink">An online room can last up to 4 hours. Choose a shorter length.</p>}
+      {tooLong && <p className="text-sm text-warn-ink">An online room can last up to {onlineMaxText(premium)}. Choose a shorter length.</p>}
       {save.isError && <p role="alert" className="text-sm text-danger">{problemText(save.error)}</p>}
       <button className="btn btn-i w-full" disabled={!ok || save.isPending}>{save.isPending ? 'Saving…' : room ? 'Save changes' : 'Create Room'}</button>
     </form>
