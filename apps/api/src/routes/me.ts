@@ -6,6 +6,7 @@ import { limited } from "../ratelimit"
 import { db } from "../context"
 import { canonical, departmentsFor, spotsFor, tidy, validPersonName } from "../lists"
 import { onProfileSaved } from "../rewards/events"
+import { isPremium } from "../premium"
 
 const Intent = t.Union([
   t.Literal("study"),
@@ -31,7 +32,8 @@ export const meRoutes = new Elysia({ prefix: "/me" })
       .select()
       .from(intentProfiles)
       .where(eq(intentProfiles.userId, user.id))
-    return { user: { ...publicSelf(user), gender: user.gender }, profiles, onboarded: profiles.length > 0, settings: { emailAlerts: user.emailAlerts } }
+    // Your own premium status, so the app can offer premium-only choices. Never part of what others see (publicSelf).
+    return { user: { ...publicSelf(user), gender: user.gender, premium: isPremium(user) }, profiles, onboarded: profiles.length > 0, settings: { emailAlerts: user.emailAlerts } }
   })
   .patch(
     "/",

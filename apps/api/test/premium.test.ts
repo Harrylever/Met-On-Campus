@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { rooms, users } from '@moc/db'
 import { db } from '../src/context'
 import { isPremium, setPremium } from '../src/premium'
-import { makeUser, resetAll } from './helpers'
+import { call, makeUser, resetAll } from './helpers'
 
 beforeEach(resetAll)
 
@@ -39,5 +39,15 @@ describe('premium and room mode', () => {
 
   test('setPremium throws for an unknown email', async () => {
     await expect(setPremium('nobody@st.futminna.edu.ng', 5)).rejects.toThrow('no such student')
+  })
+
+  test('GET /me reports premium true for a premium student and false otherwise', async () => {
+    const paid = await makeUser('Amina', { premium: true })
+    const free = await makeUser('Bola')
+    const a = await call(paid, 'GET', '/me')
+    expect(a.status).toBe(200)
+    expect(a.json.user.premium).toBe(true)
+    const b = await call(free, 'GET', '/me')
+    expect(b.json.user.premium).toBe(false)
   })
 })
