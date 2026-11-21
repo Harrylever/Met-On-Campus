@@ -6,6 +6,10 @@ import { limited } from '../ratelimit'
 import { bus, db, topics } from '../context'
 import { blockedWith, isBlockedBetween } from '../blocks'
 import { onRoomMemberApproved } from '../rewards/events'
+import { isPremium } from '../premium'
+import { livekit } from '../livekit'
+
+const ONLINE_MAX_MS = 4 * 3600_000
 
 const RoomIntent = t.Union([t.Literal('study'), t.Literal('friends')])
 
@@ -40,14 +44,21 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
     const over = await limited(user.id, 'roomCreate', set); if (over) return status(429, over)
     const startsAt = new Date(body.startsAt), endsAt = new Date(body.endsAt)
     if (!(endsAt > startsAt) || endsAt < new Date()) return status(422, { error: 'bad_time_range' })
+    const mode = body.mode ?? 'physical'
+    if (mode === 'online') {
+      if (!isPremium(user)) return status(403, { error: 'premium_required' })
+      if (!livekit.configured()) return status(503, { error: 'online_unavailable' })
+      if (endsAt.getTime() - startsAt.getTime() > ONLINE_MAX_MS) return status(422, { error: 'online_too_long' })
+    } else if (!body.place?.trim()) return status(422, { error: 'place_required' })
+    const place = mode === 'online' ? 'Online' : body.place!
     const room = await db.transaction(async (tx) => {
-      const [r] = await tx.insert(rooms).values({ ...body, startsAt, endsAt, hostId: user.id, university: user.university }).returning()
+      const [r] = await tx.insert(rooms).values({ ...body, mode, place, startsAt, endsAt, hostId: user.id, university: user.university }).returning()
       await tx.insert(roomMembers).values({ roomId: r!.id, userId: user.id, status: 'approved', decisionSeenAt: new Date() })
       return r!
     })
     bus.publish(topics.campus(user.university), { type: 'room.created', roomId: room.id, intent: room.intent })
     return { room }
-  }, { body: t.Object({ intent: RoomIntent, tag: t.String({ maxLength: 24 }), title: t.String({ maxLength: 80 }), place: t.String({ maxLength: 80 }), startsAt: t.String({ format: 'date-time' }), endsAt: t.String({ format: 'date-time' }), capacity: t.Integer({ minimum: 2, maximum: 50 }) }) })
+  }, { body: t.Object({ intent: RoomIntent, tag: t.String({ maxLength: 24 }), title: t.String({ maxLength: 80 }), mode: t.Optional(t.Union([t.Literal('physical'), t.Literal('online')])), place: t.Optional(t.String({ maxLength: 80 })), startsAt: t.String({ format: 'date-time' }), endsAt: t.String({ format: 'date-time' }), capacity: t.Integer({ minimum: 2, maximum: 50 }) }) })
   .post('/:id/request', async ({ user, params, status, set }) => {
     const over = await limited(user.id, 'roomRequest', set); if (over) return status(429, over)
     const [room] = await db.select().from(rooms).where(and(eq(rooms.id, params.id), eq(rooms.university, user.university))).limit(1)
@@ -97,6 +108,10 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
       const startsAt = body.startsAt ? new Date(body.startsAt) : room.startsAt
       const endsAt = body.endsAt ? new Date(body.endsAt) : room.endsAt
       if (!(endsAt > startsAt) || endsAt < new Date()) return { code: 422 as const, error: 'bad_time_range' }
+      if (room.mode === 'online') {
+        if (body.place !== undefined) return { code: 422 as const, error: 'place_locked' }
+        if (endsAt.getTime() - startsAt.getTime() > ONLINE_MAX_MS) return { code: 422 as const, error: 'online_too_long' }
+      }
       if (body.capacity !== undefined) {
         const [{ n } = { n: 0 }] = await tx.select({ n: sql<number>`count(*)::int` }).from(roomMembers).where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.status, 'approved')))
         if (body.capacity < n) return { code: 409 as const, error: 'capacity_below_members' }
