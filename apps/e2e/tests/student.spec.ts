@@ -66,28 +66,24 @@ test('Discover loads with nothing wrong in the browser console (no invalid HTML,
   expect(problems).toEqual([])
 })
 
-test("a student's gender icon appears on their card, and disappears when they clear it", async ({ browser, playwright }) => {
+test("a student's gender icon appears on their card once set, and there is no \"Prefer not to say\" option", async ({ browser, playwright }) => {
   const amara = await makeStudent(playwright, 'Amara')
   const viewer = await makeStudent(playwright, 'Viewer')
 
   const amaraPage = await (await browserAs(browser, amara)).newPage()
   await amaraPage.goto('/profile')
-  await amaraPage.getByLabel('Gender (optional)').selectOption('female')
+  const gender = amaraPage.getByLabel('Gender (optional)')
+  await expect(gender.locator('option', { hasText: 'Prefer not to say' })).toHaveCount(0)
+  await gender.selectOption('female')
   await amaraPage.getByRole('button', { name: 'Save details' }).click()
   await expect(amaraPage.getByRole('button', { name: 'Saved' })).toBeVisible()
+  // Once set there is nothing to go back to: only Male and Female remain.
+  await expect(gender.locator('option')).toHaveText(['Male', 'Female'])
 
   const viewerPage = await (await browserAs(browser, viewer)).newPage()
   await viewerPage.goto('/discover')
   const card = viewerPage.getByRole('article').filter({ hasText: 'Amara' })
   await expect(card.getByRole('img', { name: 'Female' })).toBeVisible()
-
-  await amaraPage.getByLabel('Gender (optional)').selectOption('')
-  await amaraPage.getByRole('button', { name: 'Save details' }).click()
-  await expect(amaraPage.getByRole('button', { name: 'Saved' })).toBeVisible()
-
-  await viewerPage.reload()
-  await expect(viewerPage.getByRole('article').filter({ hasText: 'Amara' })).toBeVisible()
-  await expect(viewerPage.getByRole('img', { name: 'Female' })).toHaveCount(0)
 })
 
 test("the per-mode gender switch is there as soon as a gender is picked, before it is saved", async ({ browser, playwright }) => {

@@ -73,15 +73,31 @@ describe('gender on Discover cards', () => {
 })
 
 describe('setting gender', () => {
-  test('PATCH /me sets and clears gender', async () => {
+  test('PATCH /me sets gender and lets you switch between male and female', async () => {
     const a = await makeUser('Amina')
     const set = await call(a, 'PATCH', '/me', { gender: 'male' })
     expect(set.status).toBe(200)
     expect(set.json.user.gender).toBe('male')
     expect((await call(a, 'GET', '/me')).json.user.gender).toBe('male')
-    const cleared = await call(a, 'PATCH', '/me', { gender: null })
-    expect(cleared.status).toBe(200)
-    expect(cleared.json.user.gender).toBeNull()
+    const switched = await call(a, 'PATCH', '/me', { gender: 'female' })
+    expect(switched.status).toBe(200)
+    expect(switched.json.user.gender).toBe('female')
+  })
+
+  test('once set, gender cannot be cleared (422 gender_cannot_be_cleared) and stays as it was', async () => {
+    const a = await makeUser('Amina', { gender: 'female' })
+    const r = await call(a, 'PATCH', '/me', { gender: null })
+    expect(r.status).toBe(422)
+    expect(r.json.error).toBe('gender_cannot_be_cleared')
+    expect((await call(a, 'GET', '/me')).json.user.gender).toBe('female')
+  })
+
+  test('sending gender null when none is set changes nothing and does not block saving other details', async () => {
+    const a = await makeUser('Amina')
+    const r = await call(a, 'PATCH', '/me', { gender: null, level: 200 })
+    expect(r.status).toBe(200)
+    expect(r.json.user.gender).toBeNull()
+    expect(r.json.user.level).toBe(200)
   })
 
   test('PATCH /me refuses other values and stores nothing', async () => {

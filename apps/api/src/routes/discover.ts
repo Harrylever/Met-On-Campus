@@ -8,6 +8,7 @@ import * as presence from '../presence'
 import { blockedWith } from '../blocks'
 import { between } from '../requests'
 import { approvedPhotoIds } from '../photos'
+import { genderCompatible } from '../visibility'
 
 export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
   .get('/', async ({ user, query, status, set }) => {
@@ -29,6 +30,8 @@ export const discoverRoutes = new Elysia({ prefix: '/discover' }).use(authed)
     const cards = rows
       .filter(({ u, p }) => {
         if (u.id === user.id || blocked.has(u.id)) return false
+        // Romance only shows the opposite gender to someone who set one (and people with none to each other); see genderCompatible.
+        if (intent === 'romance' && !genderCompatible(user, u)) return false
         // Someone you said "not now" to stays out of your feed.
         const r = between(sent, user.id, u.id)
         if (r?.status === 'declined' && r.toUserId === user.id) return false
