@@ -21,6 +21,7 @@ export const LIMITS = {
   meetup: [{ limit: 10, window: 3600 }],                                    // proposals, on top of "message"
   roomCreate: [{ limit: 5, window: 3600 }, { limit: 15, window: 86_400 }],
   roomRequest: [{ limit: 20, window: 3600 }],
+  roomJoin: [{ limit: 30, window: 3600 }],
   roomEdit: [{ limit: 20, window: 3600 }],                                  // each edit notifies every member
   discover: [{ limit: 60, window: 60 }],                                    // stops scraping the campus list
   profile: [{ limit: 30, window: 3600 }],

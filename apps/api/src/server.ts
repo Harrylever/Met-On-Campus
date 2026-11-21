@@ -4,6 +4,7 @@ import { bus, topics } from './context'
 import * as presence from './presence'
 import { assertEmailConfigured } from './email'
 import { startAlerts } from './alerts'
+import { startRoomSweep } from './roomsweep'
 
 assertEmailConfigured()
 
@@ -21,5 +22,6 @@ setInterval(async () => {
 }, 15_000)
 
 startAlerts()
+startRoomSweep()
 
 console.log(`api on http://localhost:${env.port}`)

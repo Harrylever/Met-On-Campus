@@ -51,5 +51,11 @@ export const env = {
   vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:hello@metoncampus.xyz",
   // Extra hosts a push subscription may point at. Development and tests only (a local mock push service).
   pushExtraHosts: (process.env.NODE_ENV === "production" ? "" : (process.env.PUSH_EXTRA_HOSTS ?? "")).split(",").map((s) => s.trim()).filter(Boolean),
+  // LiveKit (online rooms audio). Without all three, joining an online room is switched off.
+  livekit: {
+    url: process.env.LIVEKIT_URL ?? "",
+    apiKey: process.env.LIVEKIT_API_KEY ?? "",
+    apiSecret: process.env.LIVEKIT_API_SECRET ?? "",
+  },
   isProd: process.env.NODE_ENV === "production",
 }

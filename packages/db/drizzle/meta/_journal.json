@@ -127,6 +127,13 @@
       "when": 1795194668871,
       "tag": "0017_blue_maria_hill",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795233279515,
+      "tag": "0018_eager_logan",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import { ledgerOf } from '../rewards/engine'
 import { badgesForStaff } from '../rewards/badges'
 import { recentRequests } from '../metrics'
 import * as presence from '../presence'
+import { removeFromLiveCalls } from '../roomsweep'
 import { adminAuthed, audit } from './session'
 
 const uuid = t.String({ format: 'uuid' })
@@ -23,6 +24,7 @@ export async function suspendUser(userId: string, reason: string) {
   if (!u) return null
   await db.delete(sessions).where(eq(sessions.userId, userId))
   await presence.leave(u.university, u.id)
+  await removeFromLiveCalls(u.id) // never throws: a LiveKit outage must not undo a suspension
   return u
 }
 
