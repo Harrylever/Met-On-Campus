@@ -14,3 +14,12 @@ export function joinState(room: { startsAt: string; endsAt: string; cancelled: b
 export function blockedAmong(participantIds: string[], blockedIds: Set<string>): string[] {
   return participantIds.filter((id) => blockedIds.has(id))
 }
+
+/**
+ * The end time to hang up at: the call's room as the rooms list last saw it (so a host extending a live room moves the
+ * end), or the copy taken at join if the list does not have it.
+ */
+export function latestEndsAt(rooms: { id: string; endsAt: string | Date }[] | undefined, callRoomId: string, fallback: string): string {
+  const row = rooms?.find((r) => r.id === callRoomId)
+  return row ? new Date(row.endsAt).toISOString() : fallback
+}

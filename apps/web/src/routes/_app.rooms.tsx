@@ -6,7 +6,7 @@ import { IntentTabs, formatWhen } from '~/components/ui'
 import { deptLabel } from '~/lib/dept'
 import { rateLimitedText } from '~/lib/limits'
 import { LoadingRegion, RoomCardSkeleton, useSkeleton } from '~/components/Skeleton'
-import { joinState } from '~/lib/voice'
+import { joinState, latestEndsAt } from '~/lib/voice'
 
 const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 
@@ -52,7 +52,7 @@ function Rooms() {
   const [kind, setKind] = useState<'study' | 'friends'>('study')
   const now = useNow()
   // The online room whose call you are in (one at a time).
-  const [call, setCall] = useState<{ id: string; title: string; endsAt: string; isHost: boolean } | null>(null)
+  const [call, setCall] = useState<{ id: string; intent: 'study' | 'friends'; title: string; endsAt: string; isHost: boolean } | null>(null)
   const endCall = () => {
     const id = call?.id
     setCall(null); refresh()
@@ -61,6 +61,11 @@ function Rooms() {
   const qc = useQueryClient()
   const list = useQuery({ queryKey: ['rooms', kind], queryFn: () => unwrap(api.rooms.get({ query: { intent: kind } })) })
   const refresh = () => { qc.invalidateQueries({ queryKey: ['rooms'] }); qc.invalidateQueries({ queryKey: ['unread'] }) }
+  // The call's room list (shared with the list above when the tab matches), kept fresh by the room.* realtime events, so
+  // a host extending a live room moves the hang-up time even if you switch tabs during the call.
+  const callIntent = call?.intent ?? kind
+  const callList = useQuery({ queryKey: ['rooms', callIntent], queryFn: () => unwrap(api.rooms.get({ query: { intent: callIntent } })), enabled: !!call })
+  const callEndsAt = call ? latestEndsAt(callList.data?.rooms, call.id, call.endsAt) : ''
   const [problem, setProblem] = useState<string | null>(null)
   const fail = (e: unknown) => { setProblem(problemText(e)); refresh() }
   const request = useMutation({ mutationFn: (id: string) => unwrap(api.rooms({ id }).request.post()), onSuccess: () => { setProblem(null); refresh() }, onError: fail })
@@ -100,7 +105,7 @@ function Rooms() {
       {creating && <RoomForm intent={kind} premium={me.user.premium} onDone={() => { setCreating(false); refresh() }} />}
       {call && (
         <Suspense fallback={<p role="status" className="card text-sm text-ink-2">Joining the call…</p>}>
-          <VoiceRoom key={call.id} roomId={call.id} title={call.title} endsAt={call.endsAt} isHost={call.isHost} problemText={problemText} onLeave={endCall} />
+          <VoiceRoom key={call.id} roomId={call.id} title={call.title} endsAt={callEndsAt} isHost={call.isHost} problemText={problemText} onLeave={endCall} />
         </Suspense>
       )}
       {problem && <p role="alert" className="card text-danger">{problem}</p>}
@@ -115,7 +120,7 @@ function Rooms() {
               const online = r.mode === 'online'
               // Only the host and people with a place can join, and only while it is on. Never offered to anyone else.
               const canJoin = online && !call && (r.isHost || r.myStatus === 'approved') && joinState({ startsAt: iso(r.startsAt), endsAt: iso(r.endsAt), cancelled: r.cancelled }, now) === 'live'
-              const joinVoice = canJoin && <button data-join-voice={r.id} className="btn btn-i w-full" onClick={() => { setProblem(null); setCall({ id: r.id, title: r.title, endsAt: iso(r.endsAt), isHost: r.isHost }) }}>Join voice</button>
+              const joinVoice = canJoin && <button data-join-voice={r.id} className="btn btn-i w-full" onClick={() => { setProblem(null); setCall({ id: r.id, intent: kind, title: r.title, endsAt: iso(r.endsAt), isHost: r.isHost }) }}>Join voice</button>
               return (
                 <article key={r.id} className={`card flex flex-col gap-3 ${r.cancelled ? 'opacity-80' : ''}`}>
                   <div className="flex items-center gap-2">
