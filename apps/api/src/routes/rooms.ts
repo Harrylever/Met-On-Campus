@@ -10,6 +10,8 @@ import { isPremium } from '../premium'
 import { livekit, roomName } from '../livekit'
 
 const ONLINE_MAX_MS = 4 * 3600_000
+/** The most spots a room can have. Also the call's LiveKit participant limit: approval decides who gets a token, and LiveKit only applies the limit when it first creates the room. */
+export const ROOM_CAPACITY_MAX = 50
 
 const RoomIntent = t.Union([t.Literal('study'), t.Literal('friends')])
 
@@ -58,7 +60,7 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
     })
     bus.publish(topics.campus(user.university), { type: 'room.created', roomId: room.id, intent: room.intent })
     return { room }
-  }, { body: t.Object({ intent: RoomIntent, tag: t.String({ maxLength: 24 }), title: t.String({ maxLength: 80 }), mode: t.Optional(t.Union([t.Literal('physical'), t.Literal('online')])), place: t.Optional(t.String({ maxLength: 80 })), startsAt: t.String({ format: 'date-time' }), endsAt: t.String({ format: 'date-time' }), capacity: t.Integer({ minimum: 2, maximum: 50 }) }) })
+  }, { body: t.Object({ intent: RoomIntent, tag: t.String({ maxLength: 24 }), title: t.String({ maxLength: 80 }), mode: t.Optional(t.Union([t.Literal('physical'), t.Literal('online')])), place: t.Optional(t.String({ maxLength: 80 })), startsAt: t.String({ format: 'date-time' }), endsAt: t.String({ format: 'date-time' }), capacity: t.Integer({ minimum: 2, maximum: ROOM_CAPACITY_MAX }) }) })
   .post('/:id/request', async ({ user, params, status, set }) => {
     const over = await limited(user.id, 'roomRequest', set); if (over) return status(429, over)
     const [room] = await db.select().from(rooms).where(and(eq(rooms.id, params.id), eq(rooms.university, user.university))).limit(1)
@@ -88,7 +90,7 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
         const people = present.filter((p) => ids.has(p.identity)).map((p) => ({ name: p.name }))
         if (people.length) return status(409, { error: 'blocked_present', people })
       }
-      await livekit.ensureRoom(name, room.capacity)
+      await livekit.ensureRoom(name, ROOM_CAPACITY_MAX)
       const token = await livekit.issueToken({ room: name, identity: user.id, name: user.name, expiresAt: room.endsAt })
       return { url: livekit.url(), token }
     } catch (e) {
@@ -178,7 +180,7 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' }).use(authed)
     return { room: out.room }
   }, { body: t.Object({
     tag: t.Optional(t.String({ minLength: 1, maxLength: 24 })), title: t.Optional(t.String({ minLength: 1, maxLength: 80 })), place: t.Optional(t.String({ minLength: 1, maxLength: 80 })),
-    startsAt: t.Optional(t.String({ format: 'date-time' })), endsAt: t.Optional(t.String({ format: 'date-time' })), capacity: t.Optional(t.Integer({ minimum: 1, maximum: 50 })),
+    startsAt: t.Optional(t.String({ format: 'date-time' })), endsAt: t.Optional(t.String({ format: 'date-time' })), capacity: t.Optional(t.Integer({ minimum: 1, maximum: ROOM_CAPACITY_MAX })),
   }) })
 
   // Host: cancel. The room stays on record; people who had a place or were waiting are told and see it marked cancelled.

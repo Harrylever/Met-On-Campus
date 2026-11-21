@@ -34,7 +34,16 @@ describe('joining a live online room', () => {
     expect(fake.tokens).toHaveLength(1)
     expect(fake.tokens[0]!.expiresAt.getTime()).toBe(room.endsAt.getTime())
     expect(fake.tokens[0]!.name).toBe('Ann')
-    expect(fake.ensured).toEqual([{ room: roomName(room.id), maxParticipants: 6 }])
+    expect(fake.ensured).toEqual([{ room: roomName(room.id), maxParticipants: 50 }])
+  })
+
+  test('raising capacity mid-call does not lower the call\'s participant limit', async () => {
+    const host = await makeUser('Host', { premium: true }); const room = await makeRoom(host)
+    expect((await join(host, room)).status).toBe(200)
+    expect((await call(host, 'PATCH', `/rooms/${room.id}`, { capacity: 10 })).status).toBe(200)
+    const ann = await makeUser('Ann'); await member(room, ann)
+    expect((await join(ann, room)).status).toBe(200)
+    expect(fake.ensured.map((e) => e.maxParticipants)).toEqual([50, 50])
   })
 
   test('the host can join', async () => {
